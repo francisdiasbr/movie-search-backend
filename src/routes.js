@@ -7,7 +7,6 @@ const router = express.Router();
 router.get('/search', async (req, res) => {
   const { query } = req.query;
   try {
-    
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -18,7 +17,7 @@ router.get('/search', async (req, res) => {
         { role: 'system', content: 'You are a helpful assistant.' },
         { role: 'user', content: `Sugira filmes baseados na seguinte pesquisa: ${query}` }
       ],
-      max_tokens: 1000,
+      max_tokens: 2000,
     });
 
     console.log('AI Response:', aiResponse);
@@ -28,17 +27,10 @@ router.get('/search', async (req, res) => {
       console.log('First Choice:', choice);
 
       if (choice.message && choice.message.content) {
-        const searchQuery = choice.message.content.trim();
-        console.log('Search Query:', searchQuery);
+        const response = choice.message.content.trim();
+        const truncatedResponse = response.length > 500 ? response.substring(0, 500) : response;
 
-        const tmdbResponse = await axios.get(`https://api.themoviedb.org/3/search/movie`, {
-          params: {
-            api_key: process.env.TMDB_API_KEY,
-            query: searchQuery
-          }
-        });
-
-        res.json(tmdbResponse.data.results);
+        res.json({ response: truncatedResponse });
       } else {
         res.status(500).json({ error: 'Invalid response format from OpenAI' });
       }
