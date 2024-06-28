@@ -11,8 +11,8 @@ source venv/bin/deactivate
 pip install -r requirements.txt
 
 ### run
-clear; python ingest_title_basics.py
-clear; python ingest_title_ratings.py
-clear; python ingest_title_crew.py
-clear; python ingest_title principals.py
-clear; python ingest_name_basics.py
+clear; python ingest.title_basics.py
+clear; python ingest.title_ratings.py
+clear; python ingest.title_crew.py
+clear; python ingest.title_principals.py
+clear; python ingest.name_basics.py
