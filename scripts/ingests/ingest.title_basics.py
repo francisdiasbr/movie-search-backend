@@ -14,6 +14,10 @@ def read_tsv(file_path):
     return df
 
 def insert_into_mongo(db_name, collection_name, dataframe):
+    dataframe['startYear'] = pd.to_numeric(dataframe['startYear'], errors='coerce')
+    dataframe['endYear'] = pd.to_numeric(dataframe['endYear'], errors='coerce')
+    dataframe['genres'] = dataframe['genres'].apply(lambda x: x.split(',') if pd.notna(x) else [])
+    
     client = MongoClient('mongodb://localhost:27017/')
     db = client[db_name]
     collection = db[collection_name]
