@@ -1,5 +1,3 @@
-import requests
-
 from flask import Blueprint, jsonify, request
 
 from movies.controller import (
@@ -43,6 +41,8 @@ def delete_movies(item_id):
 def post_movies_search():
 
     request_data = request.get_json()
+
+    print("Request data movies search:", request_data)
 
     movies_array = movies_search(
         filters=request_data["filters"],
