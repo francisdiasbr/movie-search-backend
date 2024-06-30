@@ -102,6 +102,11 @@ def movies_search(filters={}, sorters=["_id", -1], page=1, page_size=10):
         ):
 
             item["_id"] = str(item["_id"])
+            if "startYear" in item and isinstance(item["startYear"], float):
+                item["startYear"] = int(item["startYear"])
+                
+            if "endYear" in item and isinstance(item["endYear"], float):
+                item["endYear"] = int(item["endYear"])
 
             documents.append(item)
 
