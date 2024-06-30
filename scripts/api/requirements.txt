@@ -1,0 +1,7 @@
+flask
+
+pymongo
+
+requests
+
+python-dotenv
