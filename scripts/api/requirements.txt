@@ -1,5 +1,7 @@
 flask
 
+openai
+
 pymongo
 
 requests
