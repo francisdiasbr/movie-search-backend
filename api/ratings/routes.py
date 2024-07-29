@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 
 from ratings.controller import (
+  movie_with_rating_retrieve,
   ratings_retrieve,
   ratings_search
 )
@@ -22,3 +23,8 @@ def post_ratings_search():
         page_size=request_data.get("page_size", 10),
     )
     return jsonify(ratings_array)
+
+@ratings_bp.route("/movie-with-rating/<item_id>", methods=["GET"])
+def get_movie_with_rating(item_id):
+    result = movie_with_rating_retrieve(item_id)
+    return jsonify(result)

@@ -86,3 +86,39 @@ def ratings_search(filters={}, sorters=["_id", -1], page=1, page_size=10):
         documents = []
 
     return {"total_documents": total_documents, "payload": documents}
+
+
+def movie_with_rating_retrieve(item_id):
+    ratings_collection = get_mongo_collection("titleratings")
+    basics_collection = get_mongo_collection("titlebasics")
+
+    try:
+        if not item_id:
+            return {"data": "Id is required"}
+
+        rating_item = ratings_collection.find_one({"_id": ObjectId(item_id)})
+
+        if rating_item:
+            rating_item["_id"] = str(rating_item["_id"])
+            movie_details = basics_collection.find_one({"tconst": rating_item["tconst"]})
+            if movie_details:
+                result = {
+                    "tconst": rating_item["tconst"],
+                    "primaryTitle": movie_details.get("primaryTitle"),
+                    "originalTitle": movie_details.get("originalTitle"),
+                    "startYear": movie_details.get("startYear"),
+                    "endYear": movie_details.get("endYear"),
+                    "runtimeMinutes": movie_details.get("runtimeMinutes"),
+                    "genres": movie_details.get("genres"),
+                    "averageRating": rating_item["averageRating"],
+                    "numVotes": rating_item["numVotes"]
+                }
+                return {"data": result}
+            else:
+                return {"status": 404, "data": "Movie details not found"}
+        else:
+            return {"status": 404, "data": "Rating not found"}
+
+    except Exception as e:
+        print(f"{e}")
+        return {"status": 400, "data": "Exception when retrieving item"}
