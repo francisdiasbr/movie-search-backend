@@ -1,14 +1,14 @@
 from bson import ObjectId
 from config import get_mongo_collection
 
-def ratings_retrieve(item_id):
+def ratings_retrieve(tconst):
     collection = get_mongo_collection("titleratings")
 
     try:
-        if not item_id:
+        if not tconst:
             return {"data": "Id is required"}
 
-        item = collection.find_one({"_id": ObjectId(item_id)})
+        item = collection.find_one({"tconst": tconst})
 
         if item:
             item["_id"] = str(item["_id"])
@@ -19,7 +19,7 @@ def ratings_retrieve(item_id):
 
     return {"data": item}
 
-def ratings_search(filters={}, sorters=["_id", -1], page=1, page_size=10):
+def ratings_search(filters={}, sorters=["tconst", -1], page=1, page_size=10):
     collection = get_mongo_collection("titleratings")
 
     if filters.get("_id"):
@@ -88,19 +88,19 @@ def ratings_search(filters={}, sorters=["_id", -1], page=1, page_size=10):
     return {"total_documents": total_documents, "payload": documents}
 
 
-def movie_with_rating_retrieve(item_id):
+def movie_with_rating_retrieve(tconst):
     ratings_collection = get_mongo_collection("titleratings")
     basics_collection = get_mongo_collection("titlebasics")
 
     try:
-        if not item_id:
+        if not tconst:
             return {"data": "Id is required"}
 
-        rating_item = ratings_collection.find_one({"_id": ObjectId(item_id)})
+        rating_item = ratings_collection.find_one({"tconst": tconst})
 
         if rating_item:
             rating_item["_id"] = str(rating_item["_id"])
-            movie_details = basics_collection.find_one({"tconst": rating_item["tconst"]})
+            movie_details = basics_collection.find_one({"tconst": tconst})
             if movie_details:
                 result = {
                     "tconst": rating_item["tconst"],
