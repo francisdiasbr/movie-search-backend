@@ -6,13 +6,16 @@ from bs4 import BeautifulSoup
 
 from ratings.controller import movie_with_rating_retrieve
 
-def movie_sync():
-    # Obtém o tconst dos parâmetros da URL
-    tconst = request.args.get("tconst")
-    
+def movie_sync(tconst):
     if not tconst:
         return jsonify({"status": 400, "data": "tconst is required"}), 400
 
+    # Verifica se o filme já está sincronizado na coleção
+    collection = get_mongo_collection("titlelist")
+    existing_movie = collection.find_one({"tconst": tconst})
+    if existing_movie:
+        return jsonify({"status": 409, "data": "Movie already synced"}), 409
+    
     # Recupera informações do filme com avaliação
     movie_info = movie_with_rating_retrieve(tconst)
 
@@ -23,11 +26,14 @@ def movie_sync():
 
     movie_data = movie_info["data"]
 
+    # Obtém a sinopse do filme
+    movie_plot = get_movie_plot(tconst)
+    movie_data['plot'] = movie_plot
+
     # Insere as informações na coleção titlelist
-    collection = get_mongo_collection("titlelist")
     try:
         inserted_id = collection.insert_one(movie_data).inserted_id
-        return jsonify({"status": 201, "data": str(inserted_id)}), 201
+        return jsonify({"data": str(inserted_id)}), 201
     except Exception as e:
         print(f"{e}")
         return jsonify({"status": 500, "data": "Failed to sync movie"}), 500
