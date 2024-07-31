@@ -8,13 +8,13 @@ from ratings.controller import movie_with_rating_retrieve
 
 def movie_sync(tconst):
     if not tconst:
-        return jsonify({"status": 400, "data": "tconst is required"}), 400
+        return jsonify({"data": "tconst is required"}), 400
 
     # Verifica se o filme já está sincronizado na coleção
     collection = get_mongo_collection("titlelist")
     existing_movie = collection.find_one({"tconst": tconst})
     if existing_movie:
-        return jsonify({"status": 409, "data": "Movie already synced"}), 409
+        return jsonify({"data": "Movie already synced"}), 409
     
     # Recupera informações do filme com avaliação
     movie_info = movie_with_rating_retrieve(tconst)
@@ -36,7 +36,7 @@ def movie_sync(tconst):
         return jsonify({"data": str(inserted_id)}), 201
     except Exception as e:
         print(f"{e}")
-        return jsonify({"status": 500, "data": "Failed to sync movie"}), 500
+        return jsonify({"data": "Failed to sync movie"}), 500
 
 
 def sanitize_movie_data(movie_data):
@@ -67,9 +67,7 @@ def get_movie_plot(tconst):
             return plot_text if plot_text else "Plot not available"
     return "Plot not available"
 
-
-
-def get_synced_items():
+def get_synced_movies():
     collection = get_mongo_collection("titlelist")
     try:
         # Busca todos os documentos na coleção titlelist
@@ -78,11 +76,19 @@ def get_synced_items():
         for item in items:
             item["_id"] = str(item["_id"])
             sanitize_movie_data(item)
-            # Obtem a sinopse e adiciona aos dados
-            imdb_tconst = item.get("tconst")
-            if imdb_tconst:
-                item["plot"] = get_movie_plot(imdb_tconst)
         return jsonify({"data": items}), 200
     except Exception as e:
         print(f"{e}")
-        return jsonify({"status": 500, "data": "Failed to retrieve synced items"}), 500
+        return jsonify({"data": "Failed to retrieve synced items"}), 500
+
+def delete_synced_movie(tconst):
+    collection = get_mongo_collection("titlelist")
+    try:
+        result = collection.delete_one({"tconst": tconst})
+        if result.deleted_count == 1:
+            return jsonify({"data": f"Movie {tconst} deleted"}), 200
+        else:
+            return jsonify({"data": f"Movie {tconst} not found"}), 404
+    except Exception as e:
+        print(f"{e}")
+        return jsonify({"data": "Failed to delete synced movie"}), 500
