@@ -19,7 +19,7 @@ def ratings_retrieve(tconst):
 
     return {"data": item}
 
-def ratings_search(filters={}, sorters=["_id", -1], page=1, page_size=10):
+def ratings_search(filters={}, sorters=["tconst", -1], page=1, page_size=10):
     collection = get_mongo_collection("titleratings")
 
     if filters.get("_id"):
