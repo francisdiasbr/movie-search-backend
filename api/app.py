@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 
 import config
 from ratings.routes import ratings_bp
@@ -7,6 +8,7 @@ from sync.routes import sync_bp
 
 # cria uma instância do Flask
 app = Flask(__name__)
+CORS(app)
 
 # registra o blueprint das rotas
 app.register_blueprint(ratings_bp)
