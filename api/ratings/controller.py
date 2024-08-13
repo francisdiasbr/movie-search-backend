@@ -105,11 +105,7 @@ def movie_with_rating_retrieve(tconst):
                 result = {
                     "tconst": rating_item["tconst"],
                     "primaryTitle": movie_details.get("primaryTitle"),
-                    "originalTitle": movie_details.get("originalTitle"),
                     "startYear": movie_details.get("startYear"),
-                    "endYear": movie_details.get("endYear"),
-                    "runtimeMinutes": movie_details.get("runtimeMinutes"),
-                    "genres": movie_details.get("genres"),
                     "averageRating": rating_item["averageRating"],
                     "numVotes": rating_item["numVotes"]
                 }

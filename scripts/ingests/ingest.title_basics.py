@@ -9,10 +9,10 @@ file_path = os.getenv('TITLE_BASICS_FILE_PATH')
 collection_name = os.getenv('COLLECTION_NAME_TITLE_BASICS')
 
 
-def read_tsv(file_path, nrows=5000):
+def read_tsv(file_path):
     print(f'Iniciando a leitura do arquivo TSV: {file_path}')
     try:
-        df = pd.read_csv(file_path, sep='\t', low_memory=False, nrows=nrows)
+        df = pd.read_csv(file_path, sep='\t', low_memory=False)
         print(f'Leitura do arquivo TSV concluída: {file_path}')
         return df
     except Exception as e:
@@ -27,9 +27,11 @@ def insert_into_mongo(collection_name, dataframe):
         collection = db[collection_name]
       
         dataframe['startYear'] = pd.to_numeric(dataframe['startYear'], errors='coerce')
-        dataframe['endYear'] = pd.to_numeric(dataframe['endYear'], errors='coerce')
-        dataframe['runtimeMinutes'] = pd.to_numeric(dataframe['runtimeMinutes'], errors='coerce')
-        dataframe['genres'] = dataframe['genres'].str.split(',')
+        # dataframe['endYear'] = pd.to_numeric(dataframe['endYear'], errors='coerce')
+        # dataframe['runtimeMinutes'] = pd.to_numeric(dataframe['runtimeMinutes'], errors='coerce')
+        # dataframe['genres'] = dataframe['genres'].str.split(',')
+
+        dataframe.drop(columns=['genres', 'endYear', 'runtimeMinutes', 'originalTitle', 'isAdult', 'titleType'], inplace=True)
 
         data_dict = dataframe.to_dict(orient='records')
         collection.insert_many(data_dict)
