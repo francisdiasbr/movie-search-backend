@@ -2,11 +2,11 @@ from config import get_mongo_collection
 from flask import request, jsonify
 import math
 import requests
-from bs4 import BeautifulSoup
 
+from list.scrapper import get_movie_sm_plot, get_movie_quote, get_wikipedia_url
 from ratings.controller import movie_with_rating_retrieve
 
-def movie_sync(tconst):
+def list_movie(tconst):
     if not tconst:
         return jsonify({"data": "tconst is required"}), 400
 
@@ -14,7 +14,7 @@ def movie_sync(tconst):
     collection = get_mongo_collection("titlelist")
     existing_movie = collection.find_one({"tconst": tconst})
     if existing_movie:
-        return jsonify({"data": "Movie already synced"}), 409
+        return jsonify({"data": "Movie already listed"}), 409
     
     # Recupera informações do filme com avaliação
     movie_info = movie_with_rating_retrieve(tconst)
@@ -27,8 +27,17 @@ def movie_sync(tconst):
     movie_data = movie_info["data"]
 
     # Obtém a sinopse do filme
-    movie_plot = get_movie_plot(tconst)
+    movie_plot = get_movie_sm_plot(tconst)
     movie_data['plot'] = movie_plot
+
+    # Obtém a citação do filme
+    movie_quote = get_movie_quote(tconst)
+    movie_data['quote'] = movie_quote
+
+    # Obtém o endereço da Wikipedia do filme
+    movie_title = movie_data.get("primaryTitle")
+    movie_wiki = get_wikipedia_url(movie_title)
+    movie_data['wiki'] = movie_wiki
 
     # Insere as informações na coleção titlelist
     try:
@@ -36,7 +45,7 @@ def movie_sync(tconst):
         return jsonify({"data": str(inserted_id)}), 201
     except Exception as e:
         print(f"{e}")
-        return jsonify({"data": "Failed to sync movie"}), 500
+        return jsonify({"data": "Failed to list movie"}), 500
 
 
 def sanitize_movie_data(movie_data):
@@ -51,23 +60,7 @@ def sanitize_movie_data(movie_data):
     return movie_data
 
 
-def get_movie_plot(tconst):
-    """Obtém a sinopse do filme no IMDb com base no tconst do IMDb"""
-    url = f"https://m.imdb.com/title/{tconst}/"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    }
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, "html.parser")
-        plot_span = soup.find("span", {"data-testid": "plot-xs_to_m"})
-        if plot_span:
-            plot_text = plot_span.get_text().strip()
-            return plot_text if plot_text else "Plot not available"
-    return "Plot not available"
-
-def get_synced_movies():
+def get_listed_movies():
     collection = get_mongo_collection("titlelist")
     try:
         # Busca todos os documentos na coleção titlelist
@@ -79,9 +72,9 @@ def get_synced_movies():
         return jsonify({"data": items}), 200
     except Exception as e:
         print(f"{e}")
-        return jsonify({"data": "Failed to retrieve synced items"}), 500
+        return jsonify({"data": "Failed to retrieve listed items"}), 500
 
-def delete_synced_movie(tconst):
+def delete_listed_movie(tconst):
     collection = get_mongo_collection("titlelist")
     try:
         result = collection.delete_one({"tconst": tconst})
@@ -91,4 +84,4 @@ def delete_synced_movie(tconst):
             return jsonify({"data": f"Movie {tconst} not found"}), 404
     except Exception as e:
         print(f"{e}")
-        return jsonify({"data": "Failed to delete synced movie"}), 500
+        return jsonify({"data": "Failed to delete listed movie"}), 500                                                                                                                          
