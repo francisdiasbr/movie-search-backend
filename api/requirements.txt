@@ -11,3 +11,5 @@ pymongo
 requests
 
 python-dotenv
+
+spotipy

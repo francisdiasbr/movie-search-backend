@@ -5,6 +5,7 @@ import requests
 
 from list.scrapper import get_movie_sm_plot, get_movie_quote, get_wikipedia_url
 from ratings.controller import movie_with_rating_retrieve
+from spotify.controller import get_album_by_movie_title
 
 def list_movie(tconst):
     if not tconst:
@@ -38,6 +39,11 @@ def list_movie(tconst):
     movie_title = movie_data.get("primaryTitle")
     movie_wiki = get_wikipedia_url(movie_title)
     movie_data['wiki'] = movie_wiki
+
+    # Obtém a playlist do Spotify
+    movie_title = movie_data.get("primaryTitle")
+    movie_soundtrack = get_album_by_movie_title(movie_title)
+    movie_data['soundtrack'] = movie_soundtrack
 
     # Insere as informações na coleção titlelist
     try:
