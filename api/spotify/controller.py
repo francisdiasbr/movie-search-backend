@@ -18,8 +18,3 @@ def get_album_by_movie_title(movie_title):
         return album_url
     else:
         return "No album found"
-
-# Exemplo de uso
-movie_title = "Annie Hall"
-album_url = get_album_by_movie_title(movie_title)
-print(album_url)
