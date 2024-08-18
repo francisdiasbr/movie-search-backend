@@ -5,6 +5,7 @@ import requests
 
 from list.scrapper import get_movie_sm_plot, get_movie_quote, get_wikipedia_url
 from ratings.controller import movie_with_rating_retrieve
+from spotify.controller import get_album_by_movie_title
 
 def list_movie(tconst):
     if not tconst:
@@ -39,6 +40,11 @@ def list_movie(tconst):
     movie_wiki = get_wikipedia_url(movie_title)
     movie_data['wiki'] = movie_wiki
 
+    # Obtém a playlist do Spotify
+    movie_title = movie_data.get("primaryTitle")
+    movie_soundtrack = get_album_by_movie_title(movie_title)
+    movie_data['soundtrack'] = movie_soundtrack
+
     # Insere as informações na coleção titlelist
     try:
         inserted_id = collection.insert_one(movie_data).inserted_id
@@ -60,19 +66,42 @@ def sanitize_movie_data(movie_data):
     return movie_data
 
 
-def get_listed_movies():
+def get_listed_movies(filters=None, sorters=None, page=1, page_size=10):
     collection = get_mongo_collection("titlelist")
+    
+    if filters is None:
+        filters = {}
+
+    if sorters is None:
+        sorters = ["_id", -1]
+
     try:
-        # Busca todos os documentos na coleção titlelist
-        items = list(collection.find())
+        # Conta o número total de documentos que correspondem aos filtros
+        total_documents = collection.count_documents(filters)
+
+        # Calcula quantos documentos devem ser pulados
+        skip = (page - 1) * page_size
+
+        # Busca os documentos na coleção titlelist com os filtros, ordenação, e paginação aplicados
+        items = list(
+            collection.find(filters)
+            .sort(sorters[0], sorters[1])
+            .skip(skip)
+            .limit(page_size)
+        )
+
         # Converte os ObjectId para strings e sanitiza os dados
         for item in items:
             item["_id"] = str(item["_id"])
             sanitize_movie_data(item)
-        return jsonify({"data": items}), 200
+
+        return jsonify({
+            "total_documents": total_documents,
+            "data": items
+        }), 200
     except Exception as e:
-        print(f"{e}")
-        return jsonify({"data": "Failed to retrieve listed items"}), 500
+        print(f"Error: {e}")
+        return jsonify({"status": 500, "message": "Internal server error"}), 500
 
 def delete_listed_movie(tconst):
     collection = get_mongo_collection("titlelist")
