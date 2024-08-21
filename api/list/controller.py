@@ -7,6 +7,35 @@ from list.scrapper import get_movie_sm_plot, get_movie_quote, get_wikipedia_url
 from ratings.controller import movie_with_rating_retrieve
 from spotify.controller import get_album_by_movie_title
 
+def edit_listed_movie(tconst, primaryTitle=None, startYear=None, soundtrack=None, wiki=None):
+    collection = get_mongo_collection("titlelist")
+    update_data = {}
+
+    if primaryTitle is not None:
+        update_data["primaryTitle"] = primaryTitle
+    if startYear is not None:
+        update_data["startYear"] = startYear
+    if soundtrack is not None:
+        update_data["soundtrack"] = soundtrack
+    if wiki is not None:
+        update_data["wiki"] = wiki
+
+    if not update_data:
+        return jsonify({"data": "No fields to update"}), 400
+    try:
+        result = collection.update_one(
+            {"tconst": tconst},
+            {"$set": update_data}
+        )
+        if result.modified_count == 1:
+            return jsonify({"data": f"Movie {tconst} updated"}), 200
+        else:
+            return jsonify({"data": f"Movie {tconst} not found or no changes made"}), 404
+    except Exception as e:
+        print(f"{e}")
+        return jsonify({"data": "Failed to update listed movie"}), 500 
+
+
 def list_movie(tconst):
     if not tconst:
         return jsonify({"data": "tconst is required"}), 400
@@ -20,29 +49,24 @@ def list_movie(tconst):
     # Recupera informações do filme com avaliação
     movie_info = movie_with_rating_retrieve(tconst)
 
+    # print('movie_info', movie_info)
+
     if movie_info.get("status") == 404:
         return jsonify({"status": 404, "data": movie_info["data"]}), 404
     elif movie_info.get("status") == 400:
         return jsonify({"status": 400, "data": movie_info["data"]}), 400
 
     movie_data = movie_info["data"]
-
-    # Obtém a sinopse do filme
+    # print('movie_data', movie_data)
     movie_plot = get_movie_sm_plot(tconst)
-    movie_data['plot'] = movie_plot
-
-    # Obtém a citação do filme
     movie_quote = get_movie_quote(tconst)
-    movie_data['quote'] = movie_quote
-
-    # Obtém o endereço da Wikipedia do filme
     movie_title = movie_data.get("primaryTitle")
     movie_wiki = get_wikipedia_url(movie_title)
-    movie_data['wiki'] = movie_wiki
-
-    # Obtém a playlist do Spotify
-    movie_title = movie_data.get("primaryTitle")
     movie_soundtrack = get_album_by_movie_title(movie_title)
+
+    movie_data['plot'] = movie_plot
+    movie_data['quote'] = movie_quote
+    movie_data['wiki'] = movie_wiki
     movie_data['soundtrack'] = movie_soundtrack
 
     # Insere as informações na coleção titlelist
@@ -97,7 +121,7 @@ def get_listed_movies(filters=None, sorters=None, page=1, page_size=10):
 
         return jsonify({
             "total_documents": total_documents,
-            "data": items
+            "entries": items
         }), 200
     except Exception as e:
         print(f"Error: {e}")
@@ -113,4 +137,6 @@ def delete_listed_movie(tconst):
             return jsonify({"data": f"Movie {tconst} not found"}), 404
     except Exception as e:
         print(f"{e}")
-        return jsonify({"data": "Failed to delete listed movie"}), 500                                                                                                                          
+        return jsonify({"data": "Failed to delete listed movie"}), 500      
+
+                                                                                                                    
