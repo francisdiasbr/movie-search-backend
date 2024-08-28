@@ -10,7 +10,6 @@ def retrieve_items():
 
     search_array = get_movies(
         filters=request_data.get("filters", {}),
-        sorters=request_data.get("sorters", ["_id", -1]),
         page=request_data.get("page", 1),
         page_size=request_data.get("page_size", 10),
         search_term = request_data.get("search_term", "")

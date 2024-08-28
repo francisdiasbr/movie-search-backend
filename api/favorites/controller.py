@@ -3,12 +3,12 @@ from flask import request, jsonify
 import math
 import requests
 
-from list.scrapper import get_movie_sm_plot, get_movie_quote, get_wikipedia_url
+from favorites.scrapper import get_movie_sm_plot, get_movie_quote, get_wikipedia_url, get_movie_poster, get_movie_country, get_movie_trivia
 from ratings.controller import movie_with_rating_retrieve
 from spotify.controller import get_album_by_movie_title
 
-def edit_listed_movie(tconst, primaryTitle=None, startYear=None, soundtrack=None, wiki=None):
-    collection = get_mongo_collection("titlelist")
+def edit_favorited_movie(tconst, primaryTitle=None, startYear=None, soundtrack=None, wiki=None):
+    collection = get_mongo_collection("favoritelist")
     update_data = {}
 
     if primaryTitle is not None:
@@ -33,15 +33,15 @@ def edit_listed_movie(tconst, primaryTitle=None, startYear=None, soundtrack=None
             return jsonify({"data": f"Movie {tconst} not found or no changes made"}), 404
     except Exception as e:
         print(f"{e}")
-        return jsonify({"data": "Failed to update listed movie"}), 500 
+        return jsonify({"data": "Failed to update favorited movie"}), 500 
 
 
-def list_movie(tconst):
+def favorite_movie(tconst):
     if not tconst:
         return jsonify({"data": "tconst is required"}), 400
 
     # Verifica se o filme já está sincronizado na coleção
-    collection = get_mongo_collection("titlelist")
+    collection = get_mongo_collection("favoritelist")
     existing_movie = collection.find_one({"tconst": tconst})
     if existing_movie:
         return jsonify({"data": "Movie already listed"}), 409
@@ -57,19 +57,27 @@ def list_movie(tconst):
         return jsonify({"status": 400, "data": movie_info["data"]}), 400
 
     movie_data = movie_info["data"]
-    # print('movie_data', movie_data)
+    print('movie_data', movie_data)
     movie_plot = get_movie_sm_plot(tconst)
     movie_quote = get_movie_quote(tconst)
     movie_title = movie_data.get("primaryTitle")
     movie_wiki = get_wikipedia_url(movie_title)
     movie_soundtrack = get_album_by_movie_title(movie_title)
+    movie_poster = get_movie_poster(tconst)
+    # print('movie_poster', movie_poster)
+    movie_country = get_movie_country(tconst)
+    movie_trivia = get_movie_trivia(tconst)
 
     movie_data['plot'] = movie_plot
     movie_data['quote'] = movie_quote
     movie_data['wiki'] = movie_wiki
     movie_data['soundtrack'] = movie_soundtrack
+    movie_data['poster'] = movie_poster
+    movie_data['country'] = movie_country
+    movie_data['trivia'] = movie_trivia
+    print('movie_data trivia', movie_data['trivia'])
 
-    # Insere as informações na coleção titlelist
+    # Insere as informações na coleção favoritelist
     try:
         inserted_id = collection.insert_one(movie_data).inserted_id
         return jsonify({"data": str(inserted_id)}), 201
@@ -90,14 +98,17 @@ def sanitize_movie_data(movie_data):
     return movie_data
 
 
-def get_listed_movies(filters=None, sorters=None, page=1, page_size=10):
-    collection = get_mongo_collection("titlelist")
-    
-    if filters is None:
-        filters = {}
+def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, search_term=""):
 
-    if sorters is None:
-        sorters = ["_id", -1]
+    collection = get_mongo_collection("favoritelist")
+    
+    country = filters.get('country')
+    if country:
+        filters['country'] = country
+
+    if search_term:
+      filters["primaryTitle"] = {"$regex": search_term, "$options": "i"}
+
 
     try:
         # Conta o número total de documentos que correspondem aos filtros
@@ -106,7 +117,7 @@ def get_listed_movies(filters=None, sorters=None, page=1, page_size=10):
         # Calcula quantos documentos devem ser pulados
         skip = (page - 1) * page_size
 
-        # Busca os documentos na coleção titlelist com os filtros, ordenação, e paginação aplicados
+        # Busca os documentos na coleção favoritelist com os filtros, ordenação, e paginação aplicados
         items = list(
             collection.find(filters)
             .sort(sorters[0], sorters[1])
@@ -116,7 +127,9 @@ def get_listed_movies(filters=None, sorters=None, page=1, page_size=10):
 
         # Converte os ObjectId para strings e sanitiza os dados
         for item in items:
+
             item["_id"] = str(item["_id"])
+            
             sanitize_movie_data(item)
 
         return jsonify({
@@ -127,8 +140,8 @@ def get_listed_movies(filters=None, sorters=None, page=1, page_size=10):
         print(f"Error: {e}")
         return jsonify({"status": 500, "message": "Internal server error"}), 500
 
-def delete_listed_movie(tconst):
-    collection = get_mongo_collection("titlelist")
+def delete_favorited_movie(tconst):
+    collection = get_mongo_collection("favoritelist")
     try:
         result = collection.delete_one({"tconst": tconst})
         if result.deleted_count == 1:
@@ -139,4 +152,21 @@ def delete_listed_movie(tconst):
         print(f"{e}")
         return jsonify({"data": "Failed to delete listed movie"}), 500      
 
-                                                                                                                    
+def get_favorited_movie(tconst):
+    print('tconst', tconst)
+    collection = get_mongo_collection("favoritelist")           
+
+    if not tconst:
+        return jsonify({"data": "tconst is required"}), 400
+
+    try:
+        movie = collection.find_one({"tconst": tconst})
+        if movie:
+            movie["_id"] = str(movie["_id"])
+            return jsonify({"data": movie}), 200
+        else:
+            return jsonify({"data": "Movie not found"}), 404
+    except Exception as e:
+        print(f"{e}")
+        return jsonify({"data": "Failed to retrieve movie"}), 500
+
