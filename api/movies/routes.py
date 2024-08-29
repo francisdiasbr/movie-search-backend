@@ -4,6 +4,7 @@ from movies.controller import get_movies
 
 movies_bp = Blueprint("movies", __name__)
 
+# Pesquisa os filmes da base de dados
 @movies_bp.route("/movies/search", methods=["POST"])
 def retrieve_items():
     request_data = request.get_json()

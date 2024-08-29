@@ -8,11 +8,13 @@ from ratings.controller import (
 
 ratings_bp = Blueprint("ratings", __name__)
 
+# Pesquisa as avaliações de um tconst
 @ratings_bp.route("/ratings/<tconst>", methods=["GET"])
 def get_ratings(tconst):
     result = ratings_retrieve(tconst)
     return jsonify(result)
 
+# Pesquisa as avaliações de um tconst
 @ratings_bp.route("/ratings/search", methods=["POST"])
 def post_ratings_search():
     request_data = request.get_json()
@@ -24,6 +26,7 @@ def post_ratings_search():
     )
     return jsonify(ratings_array)
 
+# Pesquisa um filme com avaliação
 @ratings_bp.route("/movie-with-rating/<tconst>", methods=["GET"])
 def get_movie_with_rating(tconst):
     result = movie_with_rating_retrieve(tconst)

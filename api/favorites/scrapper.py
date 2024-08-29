@@ -69,11 +69,10 @@ def get_movie_trivia(tconst):
         content_divs = soup.find_all("div", {"class": "ipc-html-content-inner-div"})
 
         trivia = []
-        for content_div in content_divs[:2]:  # Limita a captura às 2 primeiras divs
-            trivia_text = content_div.get_text(separator=" ", strip=True)  # Pega todo o texto dentro da div
+        for content_div in content_divs[:2]:
+            trivia_text = content_div.get_text(separator=" ", strip=True)
             trivia.append(trivia_text)
 
-        # Retorna todas as curiosidades concatenadas ou uma mensagem padrão se nenhuma for encontrada
         return "\n\n".join(trivia) if trivia else "Trivia not available"
     return "Trivia not available"
 
@@ -96,7 +95,6 @@ def get_movie_quote(tconst):
                 quote_text = ul_tag.get_text(separator=" ", strip=True)
                 quotes.append(quote_text)
 
-        # Retorna todas as citações concatenadas ou uma mensagem padrão se nenhuma for encontrada
         return "\n\n".join(quotes) if quotes else "Quote not available"
     return "Quote not available"
 

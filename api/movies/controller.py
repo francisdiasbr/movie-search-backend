@@ -4,8 +4,8 @@ import math
 
 from datetime import datetime
 
+# Substitui valores inválidos ou não-serializáveis por valores aceitáveis em JSON
 def sanitize_movie_data(movie_data):
-    """Substitui valores inválidos ou não-serializáveis por valores aceitáveis em JSON."""
     for key, value in movie_data.items():
         if key == "startYear":
             # Verifica se startYear é um número válido
@@ -19,6 +19,7 @@ def sanitize_movie_data(movie_data):
             movie_data[key] = sanitize_movie_data(value)
     return movie_data
 
+# Pesquisa os filmes da base de dados
 def get_movies(filters=None, sorters=None, page=1, page_size=10, search_term=""):
     
     collection = get_mongo_collection("titlebasics")
@@ -29,7 +30,6 @@ def get_movies(filters=None, sorters=None, page=1, page_size=10, search_term="")
     if sorters is None:
         sorters = ["_id", -1]
 
-    # Adiciona a condição para garantir que o campo startYear exista
     filters["startYear"] = {"$exists": True, "$ne": None, "$nin": [float('NaN')], "$gt": 1940}
 
     if search_term:
