@@ -22,7 +22,7 @@ def get_details_movie():
         return jsonify({"data": "tconst is required"}), 400
 
     # Conecta à coleção titlelist
-    collection = get_mongo_collection("titlelist")
+    collection = get_mongo_collection("favoritelist")
     
     try:
         # Busca o filme na coleção pelo tconst

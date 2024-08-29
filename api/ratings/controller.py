@@ -87,33 +87,23 @@ def ratings_search(filters={}, sorters=["tconst", -1], page=1, page_size=10):
 
     return {"total_documents": total_documents, "payload": documents}
 
-
 def movie_with_rating_retrieve(tconst):
-    ratings_collection = get_mongo_collection("titleratings")
     basics_collection = get_mongo_collection("titlebasics")
 
     try:
         if not tconst:
             return {"data": "Id is required"}
 
-        rating_item = ratings_collection.find_one({"tconst": tconst})
-
-        if rating_item:
-            rating_item["_id"] = str(rating_item["_id"])
-            movie_details = basics_collection.find_one({"tconst": tconst})
-            if movie_details:
-                result = {
-                    "tconst": rating_item["tconst"],
-                    "primaryTitle": movie_details.get("primaryTitle"),
-                    "startYear": movie_details.get("startYear"),
-                    "averageRating": rating_item["averageRating"],
-                    "numVotes": rating_item["numVotes"]
-                }
-                return {"data": result}
-            else:
-                return {"status": 404, "data": "Movie details not found"}
+        movie_details = basics_collection.find_one({"tconst": tconst})
+        if movie_details:
+            result = {
+                "tconst": movie_details.get("tconst"),
+                "primaryTitle": movie_details.get("primaryTitle"),
+                "startYear": movie_details.get("startYear"),
+            }
+            return {"data": result}
         else:
-            return {"status": 404, "data": "Rating not found"}
+            return {"status": 404, "data": "Movie details not found"}
 
     except Exception as e:
         print(f"{e}")
