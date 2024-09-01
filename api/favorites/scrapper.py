@@ -69,7 +69,7 @@ def get_movie_trivia(tconst):
         content_divs = soup.find_all("div", {"class": "ipc-html-content-inner-div"})
 
         trivia = []
-        for content_div in content_divs[:2]:
+        for content_div in content_divs[:5]:
             trivia_text = content_div.get_text(separator=" ", strip=True)
             trivia.append(trivia_text)
 

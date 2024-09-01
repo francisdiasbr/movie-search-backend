@@ -9,7 +9,6 @@ from favorites.controller import (
     edit_favorited_movie,
     favorite_movie,
     get_favorited_movie,
-    get_favorited_movies
 )
 
 favorites_bp = Blueprint("favorites", __name__)

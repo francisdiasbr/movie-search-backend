@@ -6,6 +6,12 @@ from dotenv import load_dotenv
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 
+# Configurações da OpenAI
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+# Configurações da Serper API
+SERPER_API_KEY = os.getenv('SERPER_API_KEY')
+
 # Configurações do Spotify
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')

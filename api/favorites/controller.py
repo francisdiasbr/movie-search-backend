@@ -2,7 +2,6 @@ from flask import request, jsonify
 import math
 import requests
 
-from config import get_mongo_collection
 from favorites.scrapper import (
     get_movie_sm_plot, 
     get_movie_quote, 
@@ -13,7 +12,6 @@ from favorites.scrapper import (
 )
 from ratings.controller import movie_with_rating_retrieve
 from spotify.controller import get_album_by_movie_title
-
 
 # Substitui valores inválidos ou não-serializáveis por valores aceitáveis em JSON.
 def sanitize_movie_data(movie_data):
