@@ -1,6 +1,7 @@
 from flask import request, jsonify
 import math
 import requests
+from config import get_mongo_collection
 
 from favorites.scrapper import (
     get_movie_sm_plot, 
@@ -12,17 +13,7 @@ from favorites.scrapper import (
 )
 from ratings.controller import movie_with_rating_retrieve
 from spotify.controller import get_album_by_movie_title
-
-# Substitui valores inválidos ou não-serializáveis por valores aceitáveis em JSON.
-def sanitize_movie_data(movie_data):
-    for key, value in movie_data.items():
-        if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
-            movie_data[key] = None
-        elif isinstance(value, list):
-            movie_data[key] = [sanitize_movie_data(item) if isinstance(item, dict) else item for item in value]
-        elif isinstance(value, dict):
-            movie_data[key] = sanitize_movie_data(value)
-    return movie_data
+from utils import sanitize_movie_data
 
 
 # Adiciona um filme à lista de favoritos
@@ -46,7 +37,7 @@ def favorite_movie(tconst):
         return jsonify({"status": 400, "data": movie_info["data"]}), 400
 
     movie_data = movie_info["data"]
-    print('movie_data', movie_data)
+
     movie_plot = get_movie_sm_plot(tconst)
     movie_quote = get_movie_quote(tconst)
     movie_title = movie_data.get("primaryTitle")
@@ -55,7 +46,6 @@ def favorite_movie(tconst):
     movie_poster = get_movie_poster(tconst)
     movie_country = get_movie_country(tconst)
     movie_trivia = get_movie_trivia(tconst)
-    # print('movie_poster', movie_poster)
 
     movie_data['plot'] = movie_plot
     movie_data['quote'] = movie_quote
@@ -77,7 +67,6 @@ def favorite_movie(tconst):
 
 # Recupera um filme favoritado
 def get_favorited_movie(tconst):
-    print('tconst', tconst)
     collection = get_mongo_collection("favoritelist")           
 
     if not tconst:
@@ -117,7 +106,7 @@ def edit_favorited_movie(tconst, primaryTitle=None, startYear=None, soundtrack=N
             {"$set": update_data}
         )
         if result.modified_count == 1:
-            return jsonify({"data": f"Movie {tconst} updated"}), 200
+            return jsonify({"data": update_data}), 200
         else:
             return jsonify({"data": f"Movie {tconst} not found or no changes made"}), 404
     except Exception as e:

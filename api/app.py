@@ -7,6 +7,7 @@ from generate_review.routes import generate_review_bp
 from movies.routes import movies_bp
 from ratings.routes import ratings_bp
 from suggestion.routes import suggestion_bp
+from write_review.routes import write_review_bp
 
 # cria uma instância do Flask
 app = Flask(__name__)
@@ -18,6 +19,7 @@ app.register_blueprint(generate_review_bp)
 app.register_blueprint(movies_bp)
 app.register_blueprint(ratings_bp)
 app.register_blueprint(suggestion_bp)
+app.register_blueprint(write_review_bp)
 
 # função principal para iniciar o servidor
 if __name__ == "__main__":

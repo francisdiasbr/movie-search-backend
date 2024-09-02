@@ -9,6 +9,7 @@ from favorites.controller import (
     edit_favorited_movie,
     favorite_movie,
     get_favorited_movie,
+    get_favorited_movies
 )
 
 favorites_bp = Blueprint("favorites", __name__)
@@ -27,11 +28,11 @@ def get_favorited_movie_item(tconst):
 
 
 # edita um filme
-@favorites_bp.route("/movie/<tconst>/edit", methods=["PUT"])
+@favorites_bp.route("/movie/<tconst>", methods=["PUT"])
 def update_favorited_movie_item(tconst):
     request_data = request.get_json()
     # print('edit request data', request_data)
-    primaryTitle = request_data.get('primaryTitle'),
+    primaryTitle = request_data.get('primaryTitle')
     startYear = request_data.get('startYear')
     soundtrack = request_data.get('soundtrack')
     wiki = request_data.get('wiki')
@@ -45,7 +46,7 @@ def remove_favorited_movie_item(tconst):
     return delete_favorited_movie(tconst)
 
 
-# filtra os filmes favoritados
+# filtra os filmes favoritados por termo de busca
 @favorites_bp.route("/favorited-movies/search", methods=["POST"])
 def retrieve_favorited_items():
     request_data = request.get_json()

@@ -1,15 +1,21 @@
+from flask import jsonify
 from openai import OpenAI
 import requests
 import json
 import os
+
 from config import (
     get_mongo_collection, 
     SERPER_API_KEY
 )
+from utils import sanitize_movie_data
+
 
 client = OpenAI(
     api_key=os.getenv("OPENAI_API_KEY")
 )
+
+reviewslist_collection = get_mongo_collection("reviewslist")
 
 def generate_review_summary(movie_title, snippets):
     combined_snippets = " ".join(snippets)
@@ -128,23 +134,57 @@ def create_and_save_movie_review(tconst):
 
     try:
         reviewslist_collection.insert_one(review_data)
-        return {"status": 200, "message": "Review and plot created and saved successfully"}
+        return {
+            "status": 200,
+            "data": {
+                "tconst": tconst,
+                "title": movie_title,
+                "review": review,
+                "plot": plot
+            }
+        }
     except Exception as e:
         print(f"Error: {e}")
         return {"status": 500, "message": "Internal server error"}
-
+        
 
 def get_movie_review(tconst):
-    # Conecta-se à coleção de resenhas
+    
     reviewslist_collection = get_mongo_collection("reviewslist")
 
-    # Busca o filme na coleção reviewslist
     try:
         movie_review = reviewslist_collection.find_one({"tconst": tconst}, {"_id": 0})
         if movie_review:
-            return {"status": 200, "data": movie_review}
+            return {"data": movie_review}
         else:
             return {"status": 404, "message": "Review not found"}
     except Exception as e:
         print(f"Error: {e}")
         return {"status": 500, "message": "Failed to retrieve review"}
+
+
+def get_generated_reviews(filters={}, sorters=["_id", -1], page=1, page_size=10):
+    
+    collection = reviewslist_collection
+
+    try:
+        total_documents = collection.count_documents(filters)
+        skip = (page - 1) * page_size
+        items = list(
+            collection.find(filters)
+            .sort(sorters[0], sorters[1])
+            .skip(skip)
+            .limit(page_size)
+        )
+
+        for item in items:
+            item["_id"] = str(item["_id"])
+            sanitize_movie_data(item)
+
+        return jsonify({
+            "total_documents": total_documents,
+            "entries": items
+        }), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"status": 500, "message": "Internal server error"}), 500
