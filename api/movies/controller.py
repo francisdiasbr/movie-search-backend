@@ -11,6 +11,9 @@ def sanitize_movie_data(movie_data):
             # Verifica se startYear é um número válido
             if not isinstance(value, (int, float)) or value is None or math.isnan(value) or math.isinf(value):
                 movie_data[key] = None
+            else:
+                # Converte startYear para inteiro, caso seja um número float
+                movie_data[key] = int(value)
         elif isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
             movie_data[key] = None
         elif isinstance(value, list):
@@ -24,52 +27,50 @@ def get_movies(filters=None, sorters=None, page=1, page_size=10, search_term="")
     
     collection = get_mongo_collection("titlebasics")
     
+    # Atualize para pegar o `search_term` do request
     if filters is None:
         filters = {}
 
-    if sorters is None:
-        sorters = ["_id", -1]
-
-    filters["startYear"] = {"$exists": True, "$ne": None, "$nin": [float('NaN')], "$gt": 1940}
-
+    # Se o search_term estiver na request e não no `filters`, capture-o
+    search_term = search_term or filters.get("search_term")
+    
+    # Filtra por `search_term` no campo `tconst` ou `primaryTitle`
     if search_term:
-      filters["primaryTitle"] = {"$regex": search_term, "$options": "i"}
+        filters["$or"] = [
+            {"tconst": search_term},
+            {"primaryTitle": {"$regex": search_term, "$options": "i"}}
+        ]
+
+    start_year_filter = filters.get("startYear")
+    if start_year_filter is not None:
+        try:
+            start_year = int(start_year_filter)
+            filters["startYear"] = {
+                "$exists": True,
+                "$ne": None,
+                "$nin": [float('NaN')],
+                "$eq": start_year
+            }
+        except (TypeError, ValueError):
+            filters.pop("startYear", None)
+            print("Warning: startYear provided is not a valid number.")
+    else:
+        filters["startYear"] = {"$exists": True, "$ne": None, "$nin": [float('NaN')], "$gt": 1940}
 
     try:
-        
-        date_start1 = datetime.now()
-        
-        total_documents = collection.count_documents(filters)
-
-        print(f"Tempo de execução: {(datetime.now() - date_start1).total_seconds()} segundos")
-        
         skip = (page - 1) * page_size
-
-        date_start2 = datetime.now()
-        
         items = list(
             collection.find(filters)
-            .sort(sorters[0], sorters[1])
+            .sort(sorters)
             .skip(skip)
             .limit(page_size)
         )
 
-        # Filtra manualmente para garantir que startYear é um número válido (int ou float)
-        items = [item for item in items 
-            if isinstance(item.get("startYear"), (int, float)) and item["startYear"] is not None
-        ]
-        
-        print(f"Tempo de execução: {(datetime.now() - date_start2).total_seconds()} segundos")
-
-        date_start3 = datetime.now()
-
         for item in items:
-            
             item["_id"] = str(item["_id"])
-            
             sanitize_movie_data(item)
 
-        print(f"Tempo de execução: {(datetime.now() - date_start3).total_seconds()} segundos")
+        total_documents = (page - 1) * page_size + len(items)
 
         return jsonify({
             "total_documents": total_documents,
@@ -77,6 +78,5 @@ def get_movies(filters=None, sorters=None, page=1, page_size=10, search_term="")
         }), 200
 
     except Exception as e:
-
         print(f"Error: {e}")
         return jsonify({"status": 500, "message": "Internal server error"}), 500

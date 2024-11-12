@@ -13,7 +13,8 @@ def retrieve_items():
         filters=request_data.get("filters", {}),
         page=request_data.get("page", 1),
         page_size=request_data.get("page_size", 10),
-        search_term = request_data.get("search_term", "")
+        search_term = request_data.get("search_term", ""),
+        sorters=request_data.get("sorters", [("_id", -1)])
     )
 
     return search_array

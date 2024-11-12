@@ -20,7 +20,7 @@ def create_and_save_movie_review(tconst):
     reviewTitle = review_data.get("reviewTitle", "")
 
     if not movie:
-        return {"status": 404, "message": "Movie not found"}
+        return jsonify({"message": "Movie not found in favorites"}), 404
 
     review_document = {
         "tconst": tconst,
