@@ -1,10 +1,52 @@
-from flask import Blueprint, jsonify, request
+from flask import (
+    Blueprint,
+    jsonify,
+    request
+)
 
-from favorites.controller import delete_favorited_movie, edit_favorited_movie, get_favorited_movies, favorite_movie, get_favorited_movie
+from favorites.controller import (
+    delete_favorited_movie,
+    edit_favorited_movie,
+    favorite_movie,
+    get_favorited_movie,
+    get_favorited_movies
+)
 
 favorites_bp = Blueprint("favorites", __name__)
 
-#filtra os filmes favoritados
+
+# favorita um filme
+@favorites_bp.route("/movie/<tconst>", methods=["POST"])
+def sync_movie_item(tconst):
+    return favorite_movie(tconst)
+
+
+# recupera um filme favoritado
+@favorites_bp.route("/movie/<tconst>", methods=["GET"])
+def get_favorited_movie_item(tconst):
+    return get_favorited_movie(tconst)
+
+
+# edita um filme
+@favorites_bp.route("/movie/<tconst>", methods=["PUT"])
+def update_favorited_movie_item(tconst):
+    request_data = request.get_json()
+    # print('edit request data', request_data)
+    primaryTitle = request_data.get('primaryTitle')
+    startYear = request_data.get('startYear')
+    soundtrack = request_data.get('soundtrack')
+    wiki = request_data.get('wiki')
+    
+    return edit_favorited_movie(tconst, primaryTitle, startYear, soundtrack, wiki)
+
+
+# remove um filme
+@favorites_bp.route("/movie/<tconst>", methods=["DELETE"])
+def remove_favorited_movie_item(tconst):
+    return delete_favorited_movie(tconst)
+
+
+# filtra os filmes favoritados por termo de busca
 @favorites_bp.route("/favorited-movies/search", methods=["POST"])
 def retrieve_favorited_items():
     request_data = request.get_json()
@@ -17,31 +59,3 @@ def retrieve_favorited_items():
         search_term = request_data.get("search_term", "")
     )
     return search_array
-
-
-# favorita um filme (e obtém dados do filme)
-@favorites_bp.route("/movie/<tconst>", methods=["POST"])
-def sync_movie_item(tconst):
-    return favorite_movie(tconst)
-
-@favorites_bp.route("/movie/<tconst>/edit", methods=["PUT"])
-def update_favorited_movie_item(tconst):
-    request_data = request.get_json()
-    print('edit request data', request_data)
-    primaryTitle = request_data.get('primaryTitle'),
-    startYear = request_data.get('startYear')
-    soundtrack = request_data.get('soundtrack')
-    wiki = request_data.get('wiki')
-    
-    return edit_favorited_movie(tconst, primaryTitle, startYear, soundtrack, wiki)
-
-
-@favorites_bp.route("/movie/<tconst>", methods=["DELETE"])
-def remove_favorited_movie_item(tconst):
-    return delete_favorited_movie(tconst)
-
-
-
-@favorites_bp.route("/movie/<tconst>", methods=["GET"])
-def get_favorited_movie_item(tconst):
-    return get_favorited_movie(tconst)
