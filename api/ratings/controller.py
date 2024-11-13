@@ -99,6 +99,7 @@ def movie_with_rating_retrieve(tconst):
             result = {
                 "tconst": movie_details.get("tconst"),
                 "originalTitle": movie_details.get("originalTitle"),
+                "primaryTitle": movie_details.get("primaryTitle"),
                 "startYear": movie_details.get("startYear"),
             }
             return {"data": result}
