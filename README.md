@@ -29,7 +29,7 @@ OBS: É necessário ter os dados dos filmes em formato TSV para executar os scri
 
 ### Movies (movies info/metadata)
 
-`POST /movies/search` - Permite buscar filmes com base em critérios específicos. A response inclui metadados dos filmes: tconst, primaryTitle & startYear.
+`POST /movies/search` - Permite buscar filmes com base em critérios específicos. A response inclui metadados dos filmes: tconst, originalTitle & startYear.
 
 
 ### Ratings (movie rating)

@@ -32,12 +32,12 @@ def get_favorited_movie_item(tconst):
 def update_favorited_movie_item(tconst):
     request_data = request.get_json()
     # print('edit request data', request_data)
-    primaryTitle = request_data.get('primaryTitle')
+    originalTitle = request_data.get('originalTitle')
     startYear = request_data.get('startYear')
     soundtrack = request_data.get('soundtrack')
     wiki = request_data.get('wiki')
     
-    return edit_favorited_movie(tconst, primaryTitle, startYear, soundtrack, wiki)
+    return edit_favorited_movie(tconst, originalTitle, startYear, soundtrack, wiki)
 
 
 # remove um filme

@@ -116,7 +116,7 @@ def create_and_save_movie_review(tconst):
     if not movie:
         return {"status": 404, "message": "Movie not found in favorites"}
 
-    movie_title = movie.get("primaryTitle", "")
+    movie_title = movie.get("originalTitle", "")
     if not movie_title:
         return {"status": 404, "message": "Movie title not found"}
 
@@ -127,7 +127,7 @@ def create_and_save_movie_review(tconst):
     # Atualiza o documento no banco de dados com a resenha e o enredo
     review_data = {
         "tconst": tconst,
-        "primaryTitle": movie_title,
+        "originalTitle": movie_title,
         "review": review,
         "plot": plot
     }

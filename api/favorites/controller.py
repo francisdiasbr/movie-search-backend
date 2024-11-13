@@ -53,14 +53,13 @@ def favorite_movie(tconst):
     with ThreadPoolExecutor() as executor:
         future_plot = executor.submit(get_movie_sm_plot, tconst)
         future_quote = executor.submit(get_movie_quote, tconst)
-        future_wiki = executor.submit(get_wikipedia_url, movie_data.get("primaryTitle"))
-        future_soundtrack = executor.submit(get_album_by_movie_title, movie_data.get("primaryTitle"))
+        future_wiki = executor.submit(get_wikipedia_url, movie_data.get("originalTitle"))
+        future_soundtrack = executor.submit(get_album_by_movie_title, movie_data.get("originalTitle"))
         future_poster = executor.submit(get_movie_poster, tconst)
         future_country = executor.submit(get_movie_country, tconst)
         future_trivia = executor.submit(get_movie_trivia, tconst)
         future_keywords = executor.submit(get_movie_plot_keywords, tconst)
         future_director = executor.submit(get_director, tconst)
-        future_stars = executor.submit(get_stars, tconst)
 
         # Aguarda todos os futuros e coleta os resultados
         movie_data['plot'] = future_plot.result()
@@ -72,7 +71,6 @@ def favorite_movie(tconst):
         movie_data['trivia'] = future_trivia.result()
         movie_data['plot_keywords'] = future_keywords.result()
         movie_data['director'] = future_director.result()
-        movie_data['stars'] = future_stars.result()
 
     # Converte qualquer ObjectId em movie_data
     movie_data = convert_objectid_to_str(movie_data)
@@ -106,12 +104,12 @@ def get_favorited_movie(tconst):
 
 
 # Edita um filme favoritado
-def edit_favorited_movie(tconst, primaryTitle=None, startYear=None, soundtrack=None, wiki=None):
+def edit_favorited_movie(tconst, originalTitle=None, startYear=None, soundtrack=None, wiki=None):
     collection = get_mongo_collection("favoritelist")
     update_data = {}
 
-    if primaryTitle is not None:
-        update_data["primaryTitle"] = primaryTitle
+    if originalTitle is not None:
+        update_data["originalTitle"] = originalTitle
     if startYear is not None:
         update_data["startYear"] = startYear
     if soundtrack is not None:
@@ -156,16 +154,19 @@ def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, 
 
     search_term = search_term or filters.get("search_term") or filters.get("tconst")
     
-    # Filtra `search_term` no campo `tconst` ou `primaryTitle`
+    # Filtra `search_term` no campo `tconst` ou `originalTitle`
     if search_term:
         filters["$or"] = [
             {"tconst": search_term},
-            {"primaryTitle": {"$regex": search_term, "$options": "i"}}
+            {"originalTitle": {"$regex": search_term, "$options": "i"}}
         ]
     
     country = filters.get('country')
     if country:
         filters['country'] = country
+    else:
+        filters.pop("country", None)  # Remove o filtro `country` se estiver vazio
+
 
     unique_countries = collection.distinct("country")
     unique_years = [int(year) for year in collection.distinct("startYear") if year is not None]

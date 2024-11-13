@@ -34,11 +34,11 @@ def get_movies(filters=None, sorters=None, page=1, page_size=10, search_term="")
     # Se o search_term estiver na request e não no `filters`, capture-o
     search_term = search_term or filters.get("search_term")
     
-    # Filtra por `search_term` no campo `tconst` ou `primaryTitle`
+    # Filtra por `search_term` no campo `tconst` ou `originalTitle`
     if search_term:
         filters["$or"] = [
             {"tconst": search_term},
-            {"primaryTitle": {"$regex": search_term, "$options": "i"}}
+            {"originalTitle": {"$regex": search_term, "$options": "i"}}
         ]
 
     start_year_filter = filters.get("startYear")
