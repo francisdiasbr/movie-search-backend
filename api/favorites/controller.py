@@ -3,7 +3,10 @@ from bson import ObjectId
 from flask import request, jsonify
 import math
 import requests
-from config import get_mongo_collection
+from config import (
+    get_mongo_collection,
+    RAPIDAPI_API_KEY
+)
 
 from favorites.scrapper import (
     get_movie_sm_plot, 
@@ -19,6 +22,49 @@ from ratings.controller import movie_with_rating_retrieve
 from spotify.controller import get_album_by_movie_title
 from utils import sanitize_movie_data
 
+def get_magnet_link(tconst):
+    collection = get_mongo_collection("favoritelist")
+    movie = collection.find_one({"tconst": tconst})
+    if not movie:
+        return jsonify({"data": "Movie not found"}), 404
+
+    try:
+        movie_title = movie.get("originalTitle")
+        if not movie_title:
+            return jsonify({"data": "Original title not found in the database"}), 404
+
+        search_url = "https://movie_torrent_api1.p.rapidapi.com/search/" + tconst
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "x-rapidapi-ua": "RapidAPI-Playground",
+            "x-rapidapi-key": RAPIDAPI_API_KEY,
+            "x-rapidapi-host": "movie_torrent_api1.p.rapidapi.com"
+        }
+
+        response = requests.get(search_url, headers=headers, verify=False)
+
+        print(f"Response Status Code: {response.status_code}")
+        print(f"Response Content: {response.text}")
+        
+        if response.status_code == 200:
+            try:
+                data = response.json()
+                
+                if data["status"] == "success" and data.get("data") and len(data["data"]) > 0:
+                    magnet_link = data["data"][0].get("magnet") 
+                    if magnet_link:
+                        return jsonify({"data": magnet_link}), 200
+                return jsonify({"data": "Magnet link not found"}), 404
+            except ValueError:
+                print("Erro ao decodificar JSON.")
+                return jsonify({"data": "Invalid JSON response from API"}), 500
+        else:
+            return jsonify({"data": f"Error {response.status_code} - {response.text}"}), response.status_code
+                
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"data": "Failed to retrieve magnet link"}), 500
 
 def convert_objectid_to_str(data):
     if isinstance(data, dict):
@@ -55,7 +101,7 @@ def favorite_movie(tconst):
         future_quote = executor.submit(get_movie_quote, tconst)
         future_wiki = executor.submit(get_wikipedia_url, movie_data.get("originalTitle"))
         future_soundtrack = executor.submit(get_album_by_movie_title, movie_data.get("originalTitle"))
-        future_poster = executor.submit(get_movie_poster, tconst)
+        # future_poster = executor.submit(get_movie_poster, tconst)
         future_country = executor.submit(get_movie_country, tconst)
         future_trivia = executor.submit(get_movie_trivia, tconst)
         future_keywords = executor.submit(get_movie_plot_keywords, tconst)
@@ -66,7 +112,7 @@ def favorite_movie(tconst):
         movie_data['quote'] = future_quote.result()
         movie_data['wiki'] = future_wiki.result()
         movie_data['soundtrack'] = future_soundtrack.result()
-        movie_data['poster'] = future_poster.result()
+        # movie_data['poster'] = future_poster.result()
         movie_data['country'] = future_country.result()
         movie_data['trivia'] = future_trivia.result()
         movie_data['plot_keywords'] = future_keywords.result()

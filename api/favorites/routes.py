@@ -9,7 +9,8 @@ from favorites.controller import (
     edit_favorited_movie,
     favorite_movie,
     get_favorited_movie,
-    get_favorited_movies
+    get_favorited_movies,
+    get_magnet_link
 )
 
 favorites_bp = Blueprint("favorites", __name__)
@@ -59,3 +60,10 @@ def retrieve_favorited_items():
         search_term = request_data.get("search_term", "")
     )
     return search_array
+
+@favorites_bp.route("/movie/magnet-link/<tconst>", methods=["GET"])
+def torrent_magnet(tconst):
+    
+    result, status_code = get_magnet_link(tconst)
+
+    return result, status_code
