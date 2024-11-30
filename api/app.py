@@ -34,6 +34,7 @@ app.register_blueprint(write_review_bp)
 # Adiciona o namespace de filmes
 api.add_namespace(movies_bp.api)
 api.add_namespace(favorites_bp.api)
+api.add_namespace(generate_review_bp.api)
 
 # função principal para iniciar o servidor
 if __name__ == "__main__":
