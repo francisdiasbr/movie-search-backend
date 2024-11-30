@@ -1,8 +1,5 @@
-from flask import (
-    Blueprint,
-    jsonify,
-    request
-)
+from flask import Blueprint, request
+from flask_restx import Namespace, Resource, fields
 
 from favorites.controller import (
     delete_favorited_movie,
@@ -13,49 +10,77 @@ from favorites.controller import (
 )
 
 favorites_bp = Blueprint("favorites", __name__)
+api = Namespace('favorites', description='Operações relacionadas aos filmes favoritos')
 
+# Modelos para o Swagger
+favorite_movie_model = api.model('FavoriteMovie', {
+    'primaryTitle': fields.String(description='Título do filme'),
+    'startYear': fields.Integer(description='Ano de lançamento'),
+    'soundtrack': fields.String(description='Link da trilha sonora'),
+    'wiki': fields.String(description='Link da Wikipedia')
+})
 
-# favorita um filme
-@favorites_bp.route("/movie/<tconst>", methods=["POST"])
-def sync_movie_item(tconst):
-    return favorite_movie(tconst)
+favorite_search_model = api.model('FavoriteSearch', {
+    'filters': fields.Raw(description='Filtros para a busca'),
+    'page': fields.Integer(description='Número da página', default=1),
+    'page_size': fields.Integer(description='Tamanho da página', default=10),
+    'search_term': fields.String(description='Termo de busca', default='')
+})
 
+@api.route('/movie/<string:tconst>')
+class FavoriteMovie(Resource):
+    @api.doc('get_favorite_movie')
+    @api.response(200, 'Sucesso')
+    @api.response(404, 'Filme não encontrado')
+    def get(self, tconst):
+        """Recupera um filme favoritado"""
+        return get_favorited_movie(tconst)
 
-# recupera um filme favoritado
-@favorites_bp.route("/movie/<tconst>", methods=["GET"])
-def get_favorited_movie_item(tconst):
-    return get_favorited_movie(tconst)
+    @api.doc('add_favorite_movie')
+    @api.response(201, 'Filme adicionado com sucesso')
+    @api.response(409, 'Filme já está na lista')
+    def post(self, tconst):
+        """Adiciona um filme aos favoritos"""
+        return favorite_movie(tconst)
 
+    @api.doc('update_favorite_movie')
+    @api.expect(favorite_movie_model)
+    @api.response(200, 'Filme atualizado com sucesso')
+    @api.response(404, 'Filme não encontrado')
+    def put(self, tconst):
+        """Atualiza um filme favoritado"""
+        request_data = request.get_json()
+        return edit_favorited_movie(
+            tconst,
+            request_data.get('primaryTitle'),
+            request_data.get('startYear'),
+            request_data.get('soundtrack'),
+            request_data.get('wiki')
+        )
 
-# edita um filme
-@favorites_bp.route("/movie/<tconst>", methods=["PUT"])
-def update_favorited_movie_item(tconst):
-    request_data = request.get_json()
-    # print('edit request data', request_data)
-    primaryTitle = request_data.get('primaryTitle')
-    startYear = request_data.get('startYear')
-    soundtrack = request_data.get('soundtrack')
-    wiki = request_data.get('wiki')
-    
-    return edit_favorited_movie(tconst, primaryTitle, startYear, soundtrack, wiki)
+    @api.doc('delete_favorite_movie')
+    @api.response(200, 'Filme removido com sucesso')
+    @api.response(404, 'Filme não encontrado')
+    def delete(self, tconst):
+        """Remove um filme dos favoritos"""
+        return delete_favorited_movie(tconst)
 
+@api.route('/search')
+class FavoriteMovieSearch(Resource):
+    @api.doc('search_favorite_movies')
+    @api.expect(favorite_search_model)
+    @api.response(200, 'Sucesso')
+    @api.response(400, 'Dados de entrada inválidos')
+    def post(self):
+        """Pesquisa filmes favoritados"""
+        request_data = request.get_json()
+        if not isinstance(request_data, dict):
+            return {"status": 400, "message": "Invalid input data"}, 400
+        return get_favorited_movies(
+            filters=request_data.get("filters", {}),
+            page=request_data.get("page", 1),
+            page_size=request_data.get("page_size", 10),
+            search_term=request_data.get("search_term", "")
+        )
 
-# remove um filme
-@favorites_bp.route("/movie/<tconst>", methods=["DELETE"])
-def remove_favorited_movie_item(tconst):
-    return delete_favorited_movie(tconst)
-
-
-# filtra os filmes favoritados por termo de busca
-@favorites_bp.route("/favorited-movies/search", methods=["POST"])
-def retrieve_favorited_items():
-    request_data = request.get_json()
-    if not isinstance(request_data, dict):
-        return jsonify({"status": 400, "message": "Invalid input data"}), 400
-    search_array = get_favorited_movies(
-        filters=request_data.get("filters", {}),
-        page=request_data.get("page", 1),
-        page_size=request_data.get("page_size", 10),
-        search_term = request_data.get("search_term", "")
-    )
-    return search_array
+favorites_bp.api = api

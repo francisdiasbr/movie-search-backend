@@ -44,7 +44,7 @@ def generate_plot_summary(movie_title, snippets):
     ]
 
     response = client.chat.completions.create(
-        model="gpt-4", 
+        model="gpt-4o", 
         messages=messages,
         max_tokens=1000,
         temperature=0.5
@@ -114,11 +114,11 @@ def create_and_save_movie_review(tconst):
 
     movie = favoritelist_collection.find_one({"tconst": tconst})
     if not movie:
-        return {"status": 404, "message": "Movie not found in favorites"}
+        return {"status": 404, "message": "Movie not found in favorites"}, 404
 
     movie_title = movie.get("primaryTitle", "")
     if not movie_title:
-        return {"status": 404, "message": "Movie title not found"}
+        return {"status": 404, "message": "Movie title not found"}, 404
 
     # Gera a resenha e o enredo usando Serper e OpenAI
     review = search_review_with_serper(movie_title)
@@ -134,37 +134,39 @@ def create_and_save_movie_review(tconst):
 
     try:
         reviewslist_collection.insert_one(review_data)
-        return {
-            "status": 200,
-            "data": {
-                "tconst": tconst,
-                "title": movie_title,
-                "review": review,
-                "plot": plot
-            }
-        }
+        return review_data, 200
     except Exception as e:
         print(f"Error: {e}")
-        return {"status": 500, "message": "Internal server error"}
-        
+        return {"status": 500, "message": "Internal server error"}, 500
 
 def get_movie_review(tconst):
-    
     reviewslist_collection = get_mongo_collection("reviewslist")
 
     try:
-        movie_review = reviewslist_collection.find_one({"tconst": tconst}, {"_id": 0})
-        if movie_review:
-            return {"data": movie_review}
+        # Busca todas as reviews para o tconst específico
+        movie_reviews = list(reviewslist_collection.find(
+            {"tconst": tconst}, 
+            {"_id": 0}
+        ))
+        
+        if movie_reviews:
+            return {
+                "total_documents": len(movie_reviews),
+                "entries": movie_reviews
+            }, 200
         else:
-            return {"status": 404, "message": "Review not found"}
+            return {
+                "total_documents": 0,
+                "entries": []
+            }, 404
     except Exception as e:
         print(f"Error: {e}")
-        return {"status": 500, "message": "Failed to retrieve review"}
-
+        return {
+            "total_documents": 0,
+            "entries": []
+        }, 500
 
 def get_generated_reviews(filters={}, sorters=["_id", -1], page=1, page_size=10):
-    
     collection = reviewslist_collection
 
     try:
@@ -181,10 +183,10 @@ def get_generated_reviews(filters={}, sorters=["_id", -1], page=1, page_size=10)
             item["_id"] = str(item["_id"])
             sanitize_movie_data(item)
 
-        return jsonify({
+        return {
             "total_documents": total_documents,
             "entries": items
-        }), 200
+        }, 200
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"status": 500, "message": "Internal server error"}), 500
+        return {"status": 500, "message": "Internal server error"}, 500
