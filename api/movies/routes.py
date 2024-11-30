@@ -4,7 +4,7 @@ from flask_restx import Namespace, Resource, fields
 from movies.controller import get_movies
 
 movies_bp = Blueprint("movies", __name__)
-api = Namespace('movies', description='Operações relacionadas a filmes')
+api = Namespace('movies', description='Busca de filmes na base de dados')
 
 # Definição dos modelos para o Swagger
 movie_filter_model = api.model('MovieFilter', {

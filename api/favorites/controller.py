@@ -19,22 +19,22 @@ from utils import sanitize_movie_data
 # Adiciona um filme à lista de favoritos
 def favorite_movie(tconst):
     if not tconst:
-        return jsonify({"data": "tconst is required"}), 400
+        return {"data": "tconst is required"}, 400
 
     collection = get_mongo_collection("favoritelist")
 
     existing_movie = collection.find_one({"tconst": tconst})
     
     if existing_movie:
-        return jsonify({"data": "Movie already listed"}), 409
+        return {"data": "Movie already listed"}, 409
     
     # Recupera informações do filme com avaliação
     movie_info = movie_with_rating_retrieve(tconst)
 
     if movie_info.get("status") == 404:
-        return jsonify({"status": 404, "data": movie_info["data"]}), 404
+        return {"status": 404, "data": movie_info["data"]}, 404
     elif movie_info.get("status") == 400:
-        return jsonify({"status": 400, "data": movie_info["data"]}), 400
+        return {"status": 400, "data": movie_info["data"]}, 400
 
     movie_data = movie_info["data"]
 
@@ -54,15 +54,19 @@ def favorite_movie(tconst):
     movie_data['poster'] = movie_poster
     movie_data['country'] = movie_country
     movie_data['trivia'] = movie_trivia
-    print('movie_data trivia', movie_data['trivia'])
 
     # Insere as informações na coleção favoritelist
     try:
-        inserted_id = collection.insert_one(movie_data).inserted_id
-        return jsonify({"data": str(inserted_id)}), 201
+        result = collection.insert_one(movie_data)
+        # Recupera o documento inserido
+        inserted_movie = collection.find_one({"_id": result.inserted_id})
+        if inserted_movie:
+            inserted_movie["_id"] = str(inserted_movie["_id"])
+            return {"data": inserted_movie}, 201
+        return {"data": "Failed to retrieve inserted movie"}, 500
     except Exception as e:
         print(f"{e}")
-        return jsonify({"data": "Failed to list movie"}), 500
+        return {"data": "Failed to list movie"}, 500
 
 
 # Recupera um filme favoritado
@@ -70,18 +74,18 @@ def get_favorited_movie(tconst):
     collection = get_mongo_collection("favoritelist")           
 
     if not tconst:
-        return jsonify({"data": "tconst is required"}), 400
+        return {"data": "tconst is required"}, 400
 
     try:
         movie = collection.find_one({"tconst": tconst})
         if movie:
             movie["_id"] = str(movie["_id"])
-            return jsonify({"data": movie}), 200
+            return {"data": movie}, 200
         else:
-            return jsonify({"data": "Movie not found"}), 404
+            return {"data": "Movie not found"}, 404
     except Exception as e:
         print(f"{e}")
-        return jsonify({"data": "Failed to retrieve movie"}), 500
+        return {"data": "Failed to retrieve movie"}, 500
 
 
 # Edita um filme favoritado
@@ -99,19 +103,19 @@ def edit_favorited_movie(tconst, primaryTitle=None, startYear=None, soundtrack=N
         update_data["wiki"] = wiki
 
     if not update_data:
-        return jsonify({"data": "No fields to update"}), 400
+        return {"data": "No fields to update"}, 400
     try:
         result = collection.update_one(
             {"tconst": tconst},
             {"$set": update_data}
         )
         if result.modified_count == 1:
-            return jsonify({"data": update_data}), 200
+            return {"data": update_data}, 200
         else:
-            return jsonify({"data": f"Movie {tconst} not found or no changes made"}), 404
+            return {"data": f"Movie {tconst} not found or no changes made"}, 404
     except Exception as e:
         print(f"{e}")
-        return jsonify({"data": "Failed to update favorited movie"}), 500
+        return {"data": "Failed to update favorited movie"}, 500
 
 
 # Remove um filme dos favoritos
@@ -120,12 +124,12 @@ def delete_favorited_movie(tconst):
     try:
         result = collection.delete_one({"tconst": tconst})
         if result.deleted_count == 1:
-            return jsonify({"data": f"Movie {tconst} deleted"}), 200
+            return {"data": f"Movie {tconst} deleted"}, 200
         else:
-            return jsonify({"data": f"Movie {tconst} not found"}), 404
+            return {"data": f"Movie {tconst} not found"}, 404
     except Exception as e:
         print(f"{e}")
-        return jsonify({"data": "Failed to delete listed movie"}), 500      
+        return {"data": "Failed to delete listed movie"}, 500      
 
 
 # Recupera os filmes favoritados
@@ -155,10 +159,13 @@ def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, 
             item["_id"] = str(item["_id"])
             sanitize_movie_data(item)
 
-        return jsonify({
+        return {
             "total_documents": total_documents,
             "entries": items
-        }), 200
+        }, 200
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"status": 500, "message": "Internal server error"}), 500
+        return {
+            "status": 500,
+            "message": "Internal server error"
+        }, 500
