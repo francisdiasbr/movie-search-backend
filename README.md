@@ -18,6 +18,55 @@ Scripts para carregar dados em formato TSV no MongoDB:
 `GET /search` - Permite buscar avaliações de filmes com base em critérios específicos.
 
 
+### 3. Documentação da API (Swagger)
+A documentação interativa da API está disponível através do Swagger UI:
+
+- Acesse `/docs` após iniciar o servidor
+- Interface interativa para testar endpoints
+- Documentação detalhada dos parâmetros e respostas
+- Exemplos de uso para cada rota
+
+
+### Como Testar Requisições no Swagger UI
+
+1. Acesse a documentação Swagger em `http://localhost:5000/docs`
+
+2. Localize o endpoint que deseja testar (ex: `/movies/search`)
+
+3. Para testar o endpoint de busca de filmes:
+   - Clique no endpoint `/movies/search`
+   - Clique no botão "Try it out"
+   - No corpo da requisição (Request body), insira um JSON com os parâmetros desejados:
+   ```json
+   {
+     "filters": {
+       "startYear": {"$gt": 1990}
+     },
+     "page": 1,
+     "page_size": 10,
+     "search_term": "Matrix"
+   }
+   ```
+   - Clique em "Execute" para enviar a requisição
+   - Os resultados aparecerão abaixo, incluindo:
+     - Código de resposta
+     - Headers da resposta
+     - Corpo da resposta
+     - Curl command equivalente
+
+4. Exemplos de filtros úteis:
+   ```json
+   // Buscar filmes após 1990
+   {"filters": {"startYear": {"$gt": 1990}}}
+
+   // Buscar filmes com termo específico
+   {"search_term": "Matrix"}
+
+   // Buscar com paginação
+   {"page": 2, "page_size": 20}
+   ```
+
+
 ---
 
 
