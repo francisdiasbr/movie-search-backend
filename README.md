@@ -136,9 +136,7 @@ cd data_ingestion
 python -m venv venv # criar ambiente virtual
 source venv/bin/activate  # No Windows: venv\Scripts\activate # ativar ambiente virtual
 pip install -r requirements.txt # instalar dependências
-python ingest.title_basics.py # executar o script de ingestão de dados
-python ingest.title_basics.py # executar o script de ingestão de metadados de filmes
-python ingest.title_ratings.py # executar o script de ingestão de dados de avaliações
+
 
 # Para a API (em outro terminal)
 cd api
@@ -148,41 +146,45 @@ pip install -r requirements.txt
 ```
 
 
-2. Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto e adicione as seguintes variáveis:
+2. Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto com as variáveis de ambiente necessárias (env.example).
 
-```
-FLASK_DEBUG=True
 
-MONGODB_CONNECTION_STRING="mongodb://127.0.0.1:27017/"
-MONGODB_DATABASE="movie-search"
 
-COLLECTION_NAME_TITLE_BASICS="titlebasics"
-COLLECTION_NAME_TITLE_RATINGS="titleratings"
+##  Rodando o Projeto
 
-TITLE_BASICS_FILE_PATH="path_do_arquivo_titlebasics_na_máquina_local"
-TITLE_RATINGS_FILE_PATH="path_do_arquivo_titleratings_na_máquina_local"
-
+### 1. Ingestão de Dados
+```bash
+# No diretório data_ingestion/
+python ingest.title_basics.py  # Carrega metadados dos filmes
+python ingest.title_ratings.py # Carrega avaliações
 ```
 
-## Rodando o projeto
-
-1. Inicie a aplicação Flask
-
-```
+### 2. Subindo a API
+```bash
+# No diretório api/
 python app.py
 ```
+A API estará disponível em `http://localhost:5001`
 
-A aplicação estará disponível em `http://127.0.0.1:5001`
+> 📌 **Nota**: Certifique-se de que a ingestão de dados foi concluída antes de subir a API.
 
 
 ## Tech stack
-**Flask**: microframework para desenvolvimento web.
+
+**Flask**: framework web para a construção da API.
+
+**Flask-RESTX**: Extensão para APIs RESTful com Swagger UI integrado.
 
 **MongoDB**: Banco de dados NoSQL para armazenar as informações dos filmes.
 
 **pandas**: Biblioteca para manipulação e análise de dados.
 
 **pymongo**: Biblioteca para interação com MongoDB.
+
+**OpenAI**: Biblioteca para interação com a API da OpenAI.
+
+**Spotify**: Biblioteca para interação com a API do Spotify.
+
 
 
 
