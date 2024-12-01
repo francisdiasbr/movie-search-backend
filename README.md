@@ -29,7 +29,7 @@ A documentação interativa da API está disponível através do Swagger UI:
 
 ### Como Testar Requisições no Swagger UI
 
-1. Acesse a documentação Swagger em `http://localhost:5000/docs`
+1. Acesse a documentação Swagger em `http://localhost:5001/docs`
 
 2. Localize o endpoint que deseja testar (ex: `/movies/search`)
 
@@ -85,27 +85,27 @@ A documentação interativa da API está disponível através do Swagger UI:
 
 ### Instalação e Configuração
 
-1. Clone o repositório:
 
+1. Crie e ative um ambiente virtual e instale as dependências:
 ```
-git clone https://github.com/seu-usuario/movie-search-backend.git
-cd movie-search-backend
-```
+# Para o data_ingestion
+cd data_ingestion
+python -m venv venv # criar ambiente virtual
+source venv/bin/activate  # No Windows: venv\Scripts\activate # ativar ambiente virtual
+pip install -r requirements.txt # instalar dependências
+python ingest.title_basics.py # executar o script de ingestão de dados
+python ingest.title_basics.py # executar o script de ingestão de metadados de filmes
+python ingest.title_ratings.py # executar o script de ingestão de dados de avaliações
 
-2. Crie e ative um ambiente virtual
-
-```
-python3 -m venv venv
-source venv/bin/activate  # No Windows use `venv\Scripts\activate`
-```
-
-
-3. Instale as dependências
-```
+# Para a API (em outro terminal)
+cd api
+python -m venv venv
+source venv/bin/activate  # No Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto e adicione as seguintes variáveis:
+
+2. Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto e adicione as seguintes variáveis:
 
 ```
 FLASK_DEBUG=True
@@ -129,4 +129,43 @@ TITLE_RATINGS_FILE_PATH="path_do_arquivo_titleratings_na_máquina_local"
 python app.py
 ```
 
-A aplicação estará disponível em `http://127.0.0.1:5000`
+A aplicação estará disponível em `http://127.0.0.1:5001`
+
+
+### Estrutura do Projeto
+
+```
+📁 ./
+├── 📄 README.md
+├── 📁 api/
+│   ├── 📄 app.py
+│   ├── 📄 config.py
+│   ├── 📁 favorites/
+│   │   ├── 📄 controller.py
+│   │   ├── 📄 routes.py
+│   │   └── 📄 scrapper.py
+│   ├── 📁 generate_review/
+│   │   ├── 📄 controller.py
+│   │   └── 📄 routes.py
+│   ├── 📁 movies/
+│   │   ├── 📄 controller.py
+│   │   └── 📄 routes.py
+│   ├── 📁 ratings/
+│   │   ├── 📄 controller.py
+│   │   └── 📄 routes.py
+│   ├── 📄 requirements.txt
+│   ├── 📁 spotify/
+│   │   └── 📄 controller.py
+│   ├── 📁 suggestion/
+│   │   ├── 📄 controller.py
+│   │   └── 📄 routes.py
+│   ├── 📄 utils.py
+│   └── 📁 write_review/
+│       ├── 📄 controller.py
+│       └── 📄 routes.py
+└── 📁 data_ingestion/
+    ├── 📄 ingest.title_basics.py
+    ├── 📄 ingest.title_ratings.py
+    └── 📄 requirements.txt
+
+```

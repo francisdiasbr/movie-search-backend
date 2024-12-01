@@ -11,9 +11,9 @@ from write_review.controller import (
 
 write_review_bp = Blueprint("write_review", __name__)
 
+api = Namespace('write-review', description='Operações relacionadas a resenhas escritas')
 write_review_bp.api = api
 
-api = Namespace('write-review', description='Operações relacionadas a resenhas escritas')
 
 review_input = api.model('ReviewInput', {
     'data': fields.Nested(api.model('ReviewData', {
