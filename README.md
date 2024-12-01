@@ -73,7 +73,7 @@ São scripts ETL (Extract, Transform, Load) que processam em batelada os dados d
 
 ## 2. API
 
-![Screenshot 2024-11-30 at 20 12 49](https://github.com/user-attachments/assets/9558e339-8ed0-4920-9501-6c35c66c2f3b)
+![API Documentation](assets/swagger.png)
 
 
 ## 3. Documentação da API (Open API / Swagger)
@@ -195,6 +195,8 @@ A API estará disponível em `http://localhost:5001`
 ```
 📁 ./
 ├── 📄 README.md
+├── 📁 assets/
+    ├── 📄 swagger.png
 ├── 📁 api/
 │   ├── 📄 app.py
 │   ├── 📄 config.py

@@ -56,19 +56,6 @@ class MovieReview(Resource):
         """Cria uma nova resenha para um filme"""
         return create_and_save_movie_review(tconst)
 
-    @api.doc('update_review')
-    @api.expect(review_input)
-    @api.response(200, 'Success')
-    @api.response(404, 'Review not found')
-    def put(self, tconst):
-        """Atualiza uma resenha existente"""
-        request_data = request.get_json().get("data", {})
-        return edit_movie_review(
-            tconst,
-            request_data.get("reviewTitle"),
-            request_data.get("author"),
-            request_data.get("review")
-        )
 
 @api.route('/<string:tconst>/<string:review_id>')
 class MovieReviewDetail(Resource):
@@ -92,7 +79,9 @@ class MovieReviewDetail(Resource):
     @api.response(404, 'Review not found')
     def delete(self, tconst, review_id):
         """Remove uma resenha específica"""
-        return delete_movie_review(tconst, review_id)
+        order = request.args.get('order', default=5, type=int)
+        return delete_movie_review(tconst, review_id, order)
+
 
 @api.route('/search')
 class ReviewSearch(Resource):

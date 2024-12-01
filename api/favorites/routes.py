@@ -27,7 +27,27 @@ favorite_search_model = api.model('FavoriteSearch', {
     'search_term': fields.String(description='Termo de busca', default='')
 })
 
-@api.route('/movie/<string:tconst>')
+# Define the search route first
+@api.route('/search')
+class FavoriteMovieSearch(Resource):
+    @api.doc('search_favorite_movies')
+    @api.expect(favorite_search_model)
+    @api.response(200, 'Sucesso')
+    @api.response(400, 'Dados de entrada inválidos')
+    def post(self):
+        """Pesquisa filmes favoritados"""
+        request_data = request.get_json()
+        if not isinstance(request_data, dict):
+            return {"status": 400, "message": "Invalid input data"}, 400
+        return get_favorited_movies(
+            filters=request_data.get("filters", {}),
+            page=request_data.get("page", 1),
+            page_size=request_data.get("page_size", 10),
+            search_term=request_data.get("search_term", "")
+        )
+
+# Define other routes after the search route
+@api.route('/<string:tconst>')
 class FavoriteMovie(Resource):
     @api.doc('get_favorite_movie')
     @api.response(200, 'Sucesso')
@@ -64,23 +84,5 @@ class FavoriteMovie(Resource):
     def delete(self, tconst):
         """Remove um filme dos favoritos"""
         return delete_favorited_movie(tconst)
-
-@api.route('/search')
-class FavoriteMovieSearch(Resource):
-    @api.doc('search_favorite_movies')
-    @api.expect(favorite_search_model)
-    @api.response(200, 'Sucesso')
-    @api.response(400, 'Dados de entrada inválidos')
-    def post(self):
-        """Pesquisa filmes favoritados"""
-        request_data = request.get_json()
-        if not isinstance(request_data, dict):
-            return {"status": 400, "message": "Invalid input data"}, 400
-        return get_favorited_movies(
-            filters=request_data.get("filters", {}),
-            page=request_data.get("page", 1),
-            page_size=request_data.get("page_size", 10),
-            search_term=request_data.get("search_term", "")
-        )
 
 favorites_bp.api = api
