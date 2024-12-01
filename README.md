@@ -20,10 +20,10 @@
 Este projeto, construído em Python, [é o backend do projeto MOVIE-SEARCH](https://github.com/francisdiasbr/movie-search-frontend). Está dividido em duas partes/etapas:
 
 1. **Ingestão de Dados**
-   - Scripts ETL para processar dados do IMDB Dataset
-   - Transformação de arquivos TSV para MongoDB
-   - Processamento de metadados de filmes e avaliações
-   - Otimização dos dados para consultas eficientes
+   - Scripts contendo o processo de ingestão dos dados do IMDB Dataset para o MongoDB.
+   - Dados divididos em dois conjuntos principais: 
+     - Title Basics (id + metadados dos filmes: ano, título, duração, gêneros, etc)
+     - Title Ratings (id + avaliações da comunidade)
 
 2. **Módulo API**
    - API RESTful para servir dados de filmes e avaliações
@@ -36,11 +36,10 @@ Este projeto, construído em Python, [é o backend do projeto MOVIE-SEARCH](http
      - Recomendações personalizadas
      - Integração com playlists do Spotify
 
-O objetivo é fornecer uma base robusta e escalável para o frontend, permitindo uma experiência rica de busca e descoberta de filmes, enriquecida com recursos de IA e integração com serviços de música.
 
 ## 1. Scripts de Ingestão de Dados 
 
-São scripts ETL (Extract, Transform, Load) que processam em batelada os dados do IMDB Dataset para alimentar a base de consulta no MongoDB. Os dados são divididos em dois conjuntos principais:
+São scripts ETL (Extract, Transform, Load) que processam em batelada os dados do IMDB Dataset para alimentar a base de consulta no MongoDB. Os dados são divididos em duas coleções:
 
 ### Title Basics
 - Metadados essenciais dos filmes:
@@ -53,9 +52,8 @@ São scripts ETL (Extract, Transform, Load) que processam em batelada os dados d
 
 ### Title Ratings
 - Dados de avaliação da comunidade IMDB:
-  - ⭐ Média de avaliações (averageRating)
-  - 📊 Número de votos (numVotes)
-  - 📈 Dados atualizados periodicamente
+  - ⭐ Média de avaliações
+  - 📊 Número de votos
  
 ### Processo de Ingestão
 1. **Extração**: Leitura dos arquivos TSV do IMDB
@@ -128,8 +126,10 @@ A documentação interativa da API está disponível através do Swagger UI:
 
 ## Instalação e Configuração
 
+### 1. Configuração do Ambiente
 
-1. Crie e ative um ambiente virtual e instale as dependências:
+Crie e ative um ambiente virtual e instale as dependências:
+
 ```
 # Para o data_ingestion
 cd data_ingestion
@@ -146,7 +146,9 @@ pip install -r requirements.txt
 ```
 
 
-2. Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto com as variáveis de ambiente necessárias (env.example).
+### 2. Variáveis de Ambiente
+
+Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto com as variáveis de ambiente necessárias (env.example).
 
 
 
