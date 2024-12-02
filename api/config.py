@@ -12,6 +12,9 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 # Configurações da Serper API
 SERPER_API_KEY = os.getenv('SERPER_API_KEY')
 
+# Configurações da RapidAPI
+RAPIDAPI_API_KEY = os.getenv('RAPIDAPI_API_KEY')
+
 # Configurações do Spotify
 SPOTIFY_CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 SPOTIFY_CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')

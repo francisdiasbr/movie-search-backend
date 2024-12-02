@@ -31,7 +31,11 @@ def get_movies(filters=None, sorters=None, page=1, page_size=10, search_term="")
     filters["startYear"] = {"$exists": True, "$ne": None, "$nin": [float('NaN')], "$gt": 1940}
 
     if search_term:
-      filters["primaryTitle"] = {"$regex": search_term, "$options": "i"}
+        filters["$or"] = [
+            {"tconst": search_term},
+            {"originalTitle": {"$regex": search_term, "$options": "i"}},
+            {"primaryTitle": {"$regex": search_term, "$options": "i"}}
+        ]
 
     try:
         date_start1 = datetime.now()

@@ -111,3 +111,42 @@ def get_wikipedia_url(movie_title):
     if response.status_code == 200:
         return url 
     return "Wikipedia page not found"
+
+
+def get_movie_plot_keywords(tconst):
+    url = f"https://m.imdb.com/title/{tconst}/keywords"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        keywords_list = soup.find_all("li", {"data-testid": "list-summary-item"})
+
+        # Extrai apenas strings para garantir que sejam serializáveis
+        keywords = [item.find("a").get_text() for item in keywords_list if item.find("a")]
+
+        # Retorna o array de strings diretamente
+        return keywords if keywords else ["Keywords not available"]
+
+    return ["Error retrieving keywords"]
+
+
+def get_director(tconst):
+    url = f"https://m.imdb.com/title/{tconst}/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        director_section = soup.find("li", {"data-testid": "title-pc-principal-credit"})
+
+        # Extrai o nome do diretor
+        if director_section:
+            director_name = director_section.find("a").get_text(strip=True)
+            return director_name
+
+    return "Director not available"

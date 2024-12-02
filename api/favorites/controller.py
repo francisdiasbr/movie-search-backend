@@ -1,7 +1,10 @@
 from flask import request, jsonify
 import math
 import requests
-from config import get_mongo_collection
+from config import (
+    get_mongo_collection,
+    RAPIDAPI_API_KEY
+)
 
 from favorites.scrapper import (
     get_movie_sm_plot, 
@@ -9,51 +12,103 @@ from favorites.scrapper import (
     get_wikipedia_url, 
     get_movie_poster, 
     get_movie_country, 
-    get_movie_trivia
+    get_movie_trivia,
+    get_movie_plot_keywords,
+    get_director
 )
 from ratings.controller import movie_with_rating_retrieve
 from spotify.controller import get_album_by_movie_title
 from utils import sanitize_movie_data
 
+# Recupera o magnet link do filme
+def get_magnet_link(tconst):
+    # Define a URL base
+    search_url = f"https://movie_torrent_api1.p.rapidapi.com/search/{tconst}"
+    
+    # Define os headers necessários
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "x-rapidapi-ua": "RapidAPI-Playground",
+        "x-rapidapi-key": RAPIDAPI_API_KEY,
+        "x-rapidapi-host": "movie_torrent_api1.p.rapidapi.com"
+    }
+
+    # print(f"Making request to URL: {search_url}")  
+    # print(f"Using headers: {headers}")  
+
+    # Faz a requisição à API
+    response = requests.get(search_url, headers=headers, verify=False)
+
+    print(f"Response Status Code: {response.status_code}") 
+    print(f"Response Content: {response.text}")
+
+    if response.status_code == 200:
+        try:
+            data = response.json()
+            # print(f"Response JSON: {data}") 
+            if data["status"] == "success" and data.get("data") and len(data["data"]) > 0:
+                magnet_link = data["data"][0].get("magnet")
+                if magnet_link:
+                    return {"data": magnet_link}, 200
+            return {"data": "Magnet link not found"}, 404
+        except ValueError:
+            # print("Error decoding JSON.")
+            return {"data": "Invalid JSON response from API"}, 500
+    else:
+        # print(f"Error {response.status_code} - {response.text}")
+        return {"data": f"Error {response.status_code} - {response.text}"}, response.status_code
+
+
 
 # Adiciona um filme à lista de favoritos
 def favorite_movie(tconst):
     if not tconst:
+        print("Error: tconst is required")  # Log para tconst ausente
         return {"data": "tconst is required"}, 400
 
     collection = get_mongo_collection("favoritelist")
 
+    # Verifica se o filme já está na lista de favoritos
     existing_movie = collection.find_one({"tconst": tconst})
+    print(f"Checking if movie with tconst {tconst} already exists: {existing_movie is not None}")  # Log para verificação de duplicatas
     
     if existing_movie:
         return {"data": "Movie already listed"}, 409
     
     # Recupera informações do filme com avaliação
     movie_info = movie_with_rating_retrieve(tconst)
+    print(f"Retrieved movie info: {movie_info}")  # Log para informações do filme
 
     if movie_info.get("status") == 404:
+        print("Movie not found in ratings")  # Log para filme não encontrado
         return {"status": 404, "data": movie_info["data"]}, 404
     elif movie_info.get("status") == 400:
+        print("Bad request for movie info")  # Log para requisição inválida
         return {"status": 400, "data": movie_info["data"]}, 400
 
     movie_data = movie_info["data"]
 
-    movie_plot = get_movie_sm_plot(tconst)
-    movie_quote = get_movie_quote(tconst)
     movie_title = movie_data.get("primaryTitle")
-    movie_wiki = get_wikipedia_url(movie_title)
-    movie_soundtrack = get_album_by_movie_title(movie_title)
-    movie_poster = get_movie_poster(tconst)
-    movie_country = get_movie_country(tconst)
-    movie_trivia = get_movie_trivia(tconst)
+    print(f"Movie title: {movie_title}")  
 
-    movie_data['plot'] = movie_plot
-    movie_data['quote'] = movie_quote
-    movie_data['wiki'] = movie_wiki
-    movie_data['soundtrack'] = movie_soundtrack
-    movie_data['poster'] = movie_poster
-    movie_data['country'] = movie_country
-    movie_data['trivia'] = movie_trivia
+    # Recupera o magnet link do filme
+    magnet_link_response = get_magnet_link(tconst)
+    print(f"Magnet link response: {magnet_link_response}")  
+    if magnet_link_response[1] != 200:
+        print("Failed to retrieve magnet link")
+        return {"data": "Failed to retrieve magnet link"}, magnet_link_response[1]
+
+    # Adiciona informações do filme
+    movie_data['country'] = get_movie_country(tconst)
+    movie_data['director'] = get_director(tconst)
+    movie_data['magnet_link'] = magnet_link_response[0]['data']
+    movie_data['plot'] = get_movie_sm_plot(tconst)
+    movie_data['plot_keywords'] = get_movie_plot_keywords(tconst)
+    movie_data['quote'] = get_movie_quote(tconst)
+    movie_data['soundtrack'] = get_album_by_movie_title(movie_title)
+    movie_data['trivia'] = get_movie_trivia(tconst)
+    movie_data['wiki'] = get_wikipedia_url(movie_title)
 
     # Insere as informações na coleção favoritelist
     try:
@@ -63,9 +118,10 @@ def favorite_movie(tconst):
         if inserted_movie:
             inserted_movie["_id"] = str(inserted_movie["_id"])
             return {"data": inserted_movie}, 201
+        print("Failed to retrieve inserted movie")  # Log para falha na recuperação do filme inserido
         return {"data": "Failed to retrieve inserted movie"}, 500
     except Exception as e:
-        print(f"{e}")
+        print(f"Error during insertion: {e}")  # Log para erro durante a inserção
         return {"data": "Failed to list movie"}, 500
 
 
