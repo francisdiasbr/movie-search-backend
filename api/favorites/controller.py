@@ -110,6 +110,8 @@ def favorite_movie(tconst):
     movie_data['trivia'] = get_movie_trivia(tconst)
     movie_data['wiki'] = get_wikipedia_url(movie_title)
 
+    movie_data['watched'] = False
+
     # Insere as informações na coleção favoritelist
     try:
         result = collection.insert_one(movie_data)
@@ -145,18 +147,16 @@ def get_favorited_movie(tconst):
 
 
 # Edita um filme favoritado
-def edit_favorited_movie(tconst, primaryTitle=None, startYear=None, soundtrack=None, wiki=None):
+def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None):
     collection = get_mongo_collection("favoritelist")
     update_data = {}
 
-    if primaryTitle is not None:
-        update_data["primaryTitle"] = primaryTitle
-    if startYear is not None:
-        update_data["startYear"] = startYear
     if soundtrack is not None:
         update_data["soundtrack"] = soundtrack
     if wiki is not None:
         update_data["wiki"] = wiki
+    if watched is not None:
+        update_data["watched"] = watched
 
     if not update_data:
         return {"data": "No fields to update"}, 400

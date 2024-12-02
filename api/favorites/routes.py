@@ -73,10 +73,9 @@ class FavoriteMovie(Resource):
         request_data = request.get_json()
         return edit_favorited_movie(
             tconst,
-            request_data.get('primaryTitle'),
-            request_data.get('startYear'),
             request_data.get('soundtrack'),
-            request_data.get('wiki')
+            request_data.get('wiki'),
+            request_data.get('watched')
         )
 
     @api.doc('delete_favorite_movie')
