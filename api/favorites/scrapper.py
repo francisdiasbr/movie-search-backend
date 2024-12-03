@@ -89,7 +89,7 @@ def get_movie_quote(tconst):
         content_divs = soup.find_all("div", {"class": "ipc-html-content-inner-div"})
 
         quotes = []
-        for content_div in content_divs[:5]:  # Limita a captura às 2 primeiras divs
+        for content_div in content_divs[:1]:  # Limita a captura às 2 primeiras divs
             ul_tag = content_div.find("ul")
             if ul_tag:
                 quote_text = ul_tag.get_text(separator=" ", strip=True)
