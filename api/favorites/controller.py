@@ -97,12 +97,13 @@ def favorite_movie(tconst):
     print(f"Magnet link response: {magnet_link_response}")  
     if magnet_link_response[1] != 200:
         print("Failed to retrieve magnet link")
-        return {"data": "Failed to retrieve magnet link"}, magnet_link_response[1]
+        movie_data['magnet_link'] = magnet_link_response[0]['data'] if magnet_link_response[1] == 200 else None
+    else:
+        movie_data['magnet_link'] = magnet_link_response[0]['data']
 
     # Adiciona informações do filme
     movie_data['country'] = get_movie_country(tconst)
     movie_data['director'] = get_director(tconst)
-    movie_data['magnet_link'] = magnet_link_response[0]['data']
     movie_data['plot'] = get_movie_sm_plot(tconst)
     movie_data['plot_keywords'] = get_movie_plot_keywords(tconst)
     movie_data['quote'] = get_movie_quote(tconst)
@@ -192,10 +193,22 @@ def delete_favorited_movie(tconst):
 def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, search_term=""):
 
     collection = get_mongo_collection("favoritelist")
+
+    search_term = search_term or filters.get("search_term") or filters.get("tconst")
+    
+    # Filtra `search_term` no campo `tconst` ou `primaryTitle`
+    if search_term:
+        filters["$or"] = [
+            {"tconst": search_term},
+            {"primaryTitle": {"$regex": search_term, "$options": "i"}}
+        ]
     
     country = filters.get('country')
     if country:
         filters['country'] = country
+
+    unique_countries = collection.distinct("country")
+    unique_years = [int(year) for year in collection.distinct("startYear") if year is not None]
 
     if search_term:
       filters["primaryTitle"] = {"$regex": search_term, "$options": "i"}
@@ -217,7 +230,9 @@ def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, 
 
         return {
             "total_documents": total_documents,
-            "entries": items
+            "entries": items,
+            "countries": unique_countries,
+            "years": unique_years
         }, 200
     except Exception as e:
         print(f"Error: {e}")
