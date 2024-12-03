@@ -200,7 +200,9 @@ def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, 
     if search_term:
         filters["$or"] = [
             {"tconst": search_term},
-            {"primaryTitle": {"$regex": search_term, "$options": "i"}}
+            {"originalTitle": {"$regex": search_term, "$options": "i"}},
+            {"primaryTitle": {"$regex": search_term, "$options": "i"}},
+            {"director": {"$regex": search_term, "$options": "i"}}
         ]
     
     country = filters.get('country')
@@ -209,9 +211,6 @@ def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, 
 
     unique_countries = collection.distinct("country")
     unique_years = [int(year) for year in collection.distinct("startYear") if year is not None]
-
-    if search_term:
-      filters["primaryTitle"] = {"$regex": search_term, "$options": "i"}
 
 
     try:
