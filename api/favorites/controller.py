@@ -1,53 +1,55 @@
 from flask import request, jsonify
 import math
 import requests
-from config import (
-    get_mongo_collection,
-    RAPIDAPI_API_KEY
-)
+from config import get_mongo_collection, RAPIDAPI_API_KEY
 
 from favorites.scrapper import (
-    get_movie_sm_plot, 
-    get_movie_quote, 
-    get_wikipedia_url, 
-    get_movie_poster, 
-    get_movie_country, 
+    get_movie_sm_plot,
+    get_movie_quote,
+    get_wikipedia_url,
+    get_movie_poster,
+    get_movie_country,
     get_movie_trivia,
     get_movie_plot_keywords,
-    get_director
+    get_director,
 )
 from ratings.controller import movie_with_rating_retrieve
 from spotify.controller import get_album_by_movie_title
 from utils import sanitize_movie_data
 
+
 # Recupera o magnet link do filme
 def get_magnet_link(tconst):
     # Define a URL base
     search_url = f"https://movie_torrent_api1.p.rapidapi.com/search/{tconst}"
-    
+
     # Define os headers necessários
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "x-rapidapi-ua": "RapidAPI-Playground",
         "x-rapidapi-key": RAPIDAPI_API_KEY,
-        "x-rapidapi-host": "movie_torrent_api1.p.rapidapi.com"
+        "x-rapidapi-host": "movie_torrent_api1.p.rapidapi.com",
     }
 
-    # print(f"Making request to URL: {search_url}")  
-    # print(f"Using headers: {headers}")  
+    # print(f"Making request to URL: {search_url}")
+    # print(f"Using headers: {headers}")
 
     # Faz a requisição à API
     response = requests.get(search_url, headers=headers, verify=False)
 
-    print(f"Response Status Code: {response.status_code}") 
+    print(f"Response Status Code: {response.status_code}")
     print(f"Response Content: {response.text}")
 
     if response.status_code == 200:
         try:
             data = response.json()
-            # print(f"Response JSON: {data}") 
-            if data["status"] == "success" and data.get("data") and len(data["data"]) > 0:
+            # print(f"Response JSON: {data}")
+            if (
+                data["status"] == "success"
+                and data.get("data")
+                and len(data["data"]) > 0
+            ):
                 magnet_link = data["data"][0].get("magnet")
                 if magnet_link:
                     return {"data": magnet_link}, 200
@@ -57,8 +59,9 @@ def get_magnet_link(tconst):
             return {"data": "Invalid JSON response from API"}, 500
     else:
         # print(f"Error {response.status_code} - {response.text}")
-        return {"data": f"Error {response.status_code} - {response.text}"}, response.status_code
-
+        return {
+            "data": f"Error {response.status_code} - {response.text}"
+        }, response.status_code
 
 
 # Adiciona um filme à lista de favoritos
@@ -71,11 +74,13 @@ def favorite_movie(tconst):
 
     # Verifica se o filme já está na lista de favoritos
     existing_movie = collection.find_one({"tconst": tconst})
-    print(f"Checking if movie with tconst {tconst} already exists: {existing_movie is not None}")  # Log para verificação de duplicatas
-    
+    print(
+        f"Checking if movie with tconst {tconst} already exists: {existing_movie is not None}"
+    )  # Log para verificação de duplicatas
+
     if existing_movie:
         return {"data": "Movie already listed"}, 409
-    
+
     # Recupera informações do filme com avaliação
     movie_info = movie_with_rating_retrieve(tconst)
     print(f"Retrieved movie info: {movie_info}")  # Log para informações do filme
@@ -90,28 +95,30 @@ def favorite_movie(tconst):
     movie_data = movie_info["data"]
 
     movie_title = movie_data.get("primaryTitle")
-    print(f"Movie title: {movie_title}")  
+    print(f"Movie title: {movie_title}")
 
     # Recupera o magnet link do filme
     magnet_link_response = get_magnet_link(tconst)
-    print(f"Magnet link response: {magnet_link_response}")  
+    print(f"Magnet link response: {magnet_link_response}")
     if magnet_link_response[1] != 200:
         print("Failed to retrieve magnet link")
-        movie_data['magnet_link'] = magnet_link_response[0]['data'] if magnet_link_response[1] == 200 else None
+        movie_data["magnet_link"] = (
+            magnet_link_response[0]["data"] if magnet_link_response[1] == 200 else None
+        )
     else:
-        movie_data['magnet_link'] = magnet_link_response[0]['data']
+        movie_data["magnet_link"] = magnet_link_response[0]["data"]
 
     # Adiciona informações do filme
-    movie_data['country'] = get_movie_country(tconst)
-    movie_data['director'] = get_director(tconst)
-    movie_data['plot'] = get_movie_sm_plot(tconst)
-    movie_data['plot_keywords'] = get_movie_plot_keywords(tconst)
-    movie_data['quote'] = get_movie_quote(tconst)
-    movie_data['soundtrack'] = get_album_by_movie_title(movie_title)
-    movie_data['trivia'] = get_movie_trivia(tconst)
-    movie_data['wiki'] = get_wikipedia_url(movie_title)
+    movie_data["country"] = get_movie_country(tconst)
+    movie_data["director"] = get_director(tconst)
+    movie_data["plot"] = get_movie_sm_plot(tconst)
+    movie_data["plot_keywords"] = get_movie_plot_keywords(tconst)
+    movie_data["quote"] = get_movie_quote(tconst)
+    movie_data["soundtrack"] = get_album_by_movie_title(movie_title)
+    movie_data["trivia"] = get_movie_trivia(tconst)
+    movie_data["wiki"] = get_wikipedia_url(movie_title)
 
-    movie_data['watched'] = False
+    movie_data["watched"] = False
 
     # Insere as informações na coleção favoritelist
     try:
@@ -121,7 +128,9 @@ def favorite_movie(tconst):
         if inserted_movie:
             inserted_movie["_id"] = str(inserted_movie["_id"])
             return {"data": inserted_movie}, 201
-        print("Failed to retrieve inserted movie")  # Log para falha na recuperação do filme inserido
+        print(
+            "Failed to retrieve inserted movie"
+        )  # Log para falha na recuperação do filme inserido
         return {"data": "Failed to retrieve inserted movie"}, 500
     except Exception as e:
         print(f"Error during insertion: {e}")  # Log para erro durante a inserção
@@ -130,7 +139,7 @@ def favorite_movie(tconst):
 
 # Recupera um filme favoritado
 def get_favorited_movie(tconst):
-    collection = get_mongo_collection("favoritelist")           
+    collection = get_mongo_collection("favoritelist")
 
     if not tconst:
         return {"data": "tconst is required"}, 400
@@ -162,10 +171,7 @@ def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None):
     if not update_data:
         return {"data": "No fields to update"}, 400
     try:
-        result = collection.update_one(
-            {"tconst": tconst},
-            {"$set": update_data}
-        )
+        result = collection.update_one({"tconst": tconst}, {"$set": update_data})
         if result.modified_count == 1:
             return {"data": update_data}, 200
         else:
@@ -186,32 +192,34 @@ def delete_favorited_movie(tconst):
             return {"data": f"Movie {tconst} not found"}, 404
     except Exception as e:
         print(f"{e}")
-        return {"data": "Failed to delete listed movie"}, 500      
+        return {"data": "Failed to delete listed movie"}, 500
 
 
 # Recupera os filmes favoritados
-def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, search_term=""):
-
+def get_favorited_movies(
+    filters={}, sorters=["_id", -1], page=1, page_size=10, search_term=""
+):
     collection = get_mongo_collection("favoritelist")
 
     search_term = search_term or filters.get("search_term") or filters.get("tconst")
-    
+
     # Filtra `search_term` no campo `tconst` ou `primaryTitle`
     if search_term:
         filters["$or"] = [
             {"tconst": search_term},
             {"originalTitle": {"$regex": search_term, "$options": "i"}},
             {"primaryTitle": {"$regex": search_term, "$options": "i"}},
-            {"director": {"$regex": search_term, "$options": "i"}}
+            {"director": {"$regex": search_term, "$options": "i"}},
         ]
-    
-    country = filters.get('country')
+
+    country = filters.get("country")
     if country:
-        filters['country'] = country
+        filters["country"] = country
 
     unique_countries = collection.distinct("country")
-    unique_years = [int(year) for year in collection.distinct("startYear") if year is not None]
-
+    unique_years = [
+        int(year) for year in collection.distinct("startYear") if year is not None
+    ]
 
     try:
         total_documents = collection.count_documents(filters)
@@ -231,11 +239,8 @@ def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, 
             "total_documents": total_documents,
             "entries": items,
             "countries": unique_countries,
-            "years": unique_years
+            "years": unique_years,
         }, 200
     except Exception as e:
         print(f"Error: {e}")
-        return {
-            "status": 500,
-            "message": "Internal server error"
-        }, 500
+        return {"status": 500, "message": "Internal server error"}, 500

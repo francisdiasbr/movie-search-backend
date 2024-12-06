@@ -1,7 +1,4 @@
-from flask import (
-    jsonify,
-    request
-)
+from flask import jsonify, request
 import json
 
 from config import get_mongo_collection
@@ -14,7 +11,6 @@ favoritelist_collection = get_mongo_collection("favoritelist")
 
 # Cria e salva uma resenha para um filme
 def create_and_save_movie_review(tconst):
-
     movie = favoritelist_collection.find_one({"tconst": tconst})
 
     review_data = request.json.get("data", {})
@@ -29,9 +25,9 @@ def create_and_save_movie_review(tconst):
         "tconst": tconst,
         "reviewTitle": reviewTitle,
         "review": review,
-        "author": author
+        "author": author,
     }
-    
+
     try:
         result = authoralreviewslist_collection.insert_one(review_document)
 
@@ -48,10 +44,12 @@ def create_and_save_movie_review(tconst):
 def get_movie_review(tconst):
     try:
         # Buscar todas as reviews para o tconst específico
-        movie_reviews = list(authoralreviewslist_collection.find(
-            {"tconst": tconst},
-            {"_id": 1, "tconst": 1, "reviewTitle": 1, "review": 1, "author": 1}
-        ))
+        movie_reviews = list(
+            authoralreviewslist_collection.find(
+                {"tconst": tconst},
+                {"_id": 1, "tconst": 1, "reviewTitle": 1, "review": 1, "author": 1},
+            )
+        )
 
         # Converter ObjectId para string em cada review
         for review in movie_reviews:
@@ -60,11 +58,11 @@ def get_movie_review(tconst):
         if movie_reviews:
             return {
                 "total_documents": len(movie_reviews),
-                "entries": movie_reviews
+                "entries": movie_reviews,
             }, 200
         else:
             return {"status": 404, "message": "No reviews found for this movie"}
-    
+
     except Exception as e:
         print(f"Error: {e}")
         return {"status": 500, "message": "Internal server error"}
@@ -74,11 +72,10 @@ def get_movie_review(tconst):
 def edit_movie_review(tconst, review_id, reviewTitle=None, author=None, review=None):
     try:
         # Primeiro verifica se a review existe usando tconst e _id
-        existing_review = authoralreviewslist_collection.find_one({
-            "tconst": tconst,
-            "_id": ObjectId(review_id)
-        })
-        
+        existing_review = authoralreviewslist_collection.find_one(
+            {"tconst": tconst, "_id": ObjectId(review_id)}
+        )
+
         if not existing_review:
             return {"status": 404, "message": f"Review not found"}
 
@@ -93,19 +90,14 @@ def edit_movie_review(tconst, review_id, reviewTitle=None, author=None, review=N
 
         # Atualiza o documento específico
         result = authoralreviewslist_collection.update_one(
-            {
-                "tconst": tconst,
-                "_id": ObjectId(review_id)
-            }, 
-            {"$set": update_data}
+            {"tconst": tconst, "_id": ObjectId(review_id)}, {"$set": update_data}
         )
 
         if result.modified_count == 1:
             # Busca a review atualizada para retornar
-            updated_review = authoralreviewslist_collection.find_one({
-                "tconst": tconst,
-                "_id": ObjectId(review_id)
-            })
+            updated_review = authoralreviewslist_collection.find_one(
+                {"tconst": tconst, "_id": ObjectId(review_id)}
+            )
             updated_review["_id"] = str(updated_review["_id"])
             return {"data": updated_review}, 200
         else:
@@ -119,11 +111,10 @@ def edit_movie_review(tconst, review_id, reviewTitle=None, author=None, review=N
 # Remove uma resenha da base
 def delete_movie_review(tconst, review_id):
     try:
-        result = authoralreviewslist_collection.delete_one({
-            "tconst": tconst,
-            "_id": ObjectId(review_id)
-        })
-        
+        result = authoralreviewslist_collection.delete_one(
+            {"tconst": tconst, "_id": ObjectId(review_id)}
+        )
+
         if result.deleted_count == 1:
             return {"message": f"Review deleted successfully"}, 200
         else:
@@ -151,11 +142,7 @@ def get_created_reviews(filters={}, sorters=["_id", -1], page=1, page_size=10):
             item["_id"] = str(item["_id"])
             sanitize_movie_data(item)
 
-        return {
-            "total_documents": total_documents,
-            "entries": items
-        }, 200
+        return {"total_documents": total_documents, "entries": items}, 200
     except Exception as e:
         print(f"Error: {e}")
         return {"status": 500, "message": "Internal server error"}, 500
-        

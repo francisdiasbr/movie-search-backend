@@ -3,6 +3,7 @@ from config import get_mongo_collection
 
 COLLECTION_NAME = "favorites_keywords"
 
+
 def add_keyword(keyword):
     """Adiciona uma palavra-chave aos favoritos"""
     if not keyword:
@@ -23,13 +24,14 @@ def add_keyword(keyword):
             return {
                 "data": {
                     "_id": str(inserted_keyword["_id"]),
-                    "keyword": inserted_keyword["keyword"]
+                    "keyword": inserted_keyword["keyword"],
                 }
             }, 201
         return {"data": "Failed to retrieve inserted keyword"}, 500
     except Exception as e:
         print(f"Error: {e}")
         return {"data": "Failed to add keyword"}, 500
+
 
 def get_favorited_keywords():
     """Recupera todas as palavras-chave favoritas"""
@@ -44,13 +46,14 @@ def get_favorited_keywords():
         print(f"Error: {e}")
         return {"data": "Failed to retrieve keywords"}, 500
 
+
 def delete_favorited_keyword(keyword):
     """Remove uma palavra-chave dos favoritos"""
     if not keyword:
         return {"data": "Keyword is required"}, 400
-        
+
     collection = get_mongo_collection(COLLECTION_NAME)
-    
+
     try:
         result = collection.delete_one({"keyword": keyword})
         if result.deleted_count:

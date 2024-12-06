@@ -8,6 +8,8 @@ flask_cors
 
 openai
 
+pre-commit
+
 pymongo
 
 requests

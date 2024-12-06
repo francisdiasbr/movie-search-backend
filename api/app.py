@@ -16,21 +16,24 @@ app = Flask(__name__)
 app.url_map.strict_slashes = False  # Permite URLs com ou sem barra no final
 
 # Configuração do CORS
-CORS(app, resources={
-    r"/*": {
-        "origins": "*",
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+CORS(
+    app,
+    resources={
+        r"/*": {
+            "origins": "*",
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+        }
+    },
+)
 
 # Configuração do Swagger
 api = Api(
     app,
-    version='1.0',
-    title='Movies API',
-    description='API para gerenciamento de filmes',
-    doc='/docs'  # A documentação estará disponível em /docs
+    version="1.0",
+    title="Movies API",
+    description="API para gerenciamento de filmes",
+    doc="/docs",  # A documentação estará disponível em /docs
 )
 
 # registra o blueprint das rotas
@@ -51,4 +54,4 @@ api.add_namespace(keywords_bp.api)
 
 # função principal para iniciar o servidor
 if __name__ == "__main__":
-    app.run(debug=config.FLASK_DEBUG, host='0.0.0.0', port=5001)
+    app.run(debug=config.FLASK_DEBUG, host="0.0.0.0", port=5001)

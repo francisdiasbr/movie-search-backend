@@ -4,72 +4,78 @@ import requests
 import json
 import os
 
-from config import (
-    get_mongo_collection, 
-    SERPER_API_KEY
-)
+from config import get_mongo_collection, SERPER_API_KEY
 from utils import sanitize_movie_data
 
 
-client = OpenAI(
-    api_key=os.getenv("OPENAI_API_KEY")
-)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 reviewslist_collection = get_mongo_collection("reviewslist")
+
 
 def generate_review_summary(movie_title, snippets):
     combined_snippets = " ".join(snippets)
 
     messages = [
-        {"role": "system", "content": "Você é um especialista em críticas de filmes e escreverá em português."},
-        {"role": "user", "content": f"Baseado nas seguintes informações sobre o filme {movie_title}, escreva uma resenha {combined_snippets}"}
+        {
+            "role": "system",
+            "content": "Você é um especialista em críticas de filmes e escreverá em português.",
+        },
+        {
+            "role": "user",
+            "content": f"Baseado nas seguintes informações sobre o filme {movie_title}, escreva uma resenha {combined_snippets}",
+        },
     ]
 
     response = client.chat.completions.create(
-        model="gpt-4", 
-        messages=messages,
-        max_tokens=500,
-        temperature=0.8
+        model="gpt-4", messages=messages, max_tokens=500, temperature=0.8
     )
 
     print(f"Response: {response}")
     return response.choices[0].message.content.strip()
+
 
 def generate_plot_summary(movie_title, snippets):
     combined_snippets = " ".join(snippets)
 
     messages = [
-        {"role": "system", "content": "Você é um especialista em críticas de filmes e escreverá em português."},
-        {"role": "user", "content": f"Baseado nas seguintes informações sobre o filme {movie_title}, escreva o enredo do filme: {combined_snippets}, contando a história, sequencialmente. Após, inclua: principais atores e atrizes e seus respectivos papéis. Ao final, fale da importância histórica do filme e o contexto da época na qual o filme fora lançado. Bons sites incluem: wikipedia, imdb, rotten tomatoes, the guardian"}
+        {
+            "role": "system",
+            "content": "Você é um especialista em críticas de filmes e escreverá em português.",
+        },
+        {
+            "role": "user",
+            "content": f"Baseado nas seguintes informações sobre o filme {movie_title}, escreva o enredo do filme: {combined_snippets}, contando a história, sequencialmente. Após, inclua: principais atores e atrizes e seus respectivos papéis. Ao final, fale da importância histórica do filme e o contexto da época na qual o filme fora lançado. Bons sites incluem: wikipedia, imdb, rotten tomatoes, the guardian",
+        },
     ]
 
     response = client.chat.completions.create(
-        model="gpt-4o", 
-        messages=messages,
-        max_tokens=1000,
-        temperature=0.5
+        model="gpt-4o", messages=messages, max_tokens=1000, temperature=0.5
     )
 
     print(f"Response: {response}")
     return response.choices[0].message.content.strip()
 
+
 def search_plot_with_serper(movie_title):
     url = "https://google.serper.dev/search"
-    payload = json.dumps({
-        "q": f"{movie_title} movie story",
-    })
-    headers = {
-        'X-API-KEY': SERPER_API_KEY,
-        'Content-Type': 'application/json'
-    }
+    payload = json.dumps(
+        {
+            "q": f"{movie_title} movie story",
+        }
+    )
+    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
 
     response = requests.post(url, headers=headers, data=payload)
     if response.status_code == 200:
         data = response.json()
         plot_snippets = []
-        for result in data.get('organic', []):
-            if "story" in result.get('title', '').lower() or "story" in result.get('snippet', '').lower():
-                plot_snippets.append(result.get('snippet'))
+        for result in data.get("organic", []):
+            if (
+                "story" in result.get("title", "").lower()
+                or "story" in result.get("snippet", "").lower()
+            ):
+                plot_snippets.append(result.get("snippet"))
         if plot_snippets:
             plot_summary = generate_plot_summary(movie_title, plot_snippets)
             return plot_summary
@@ -80,24 +86,27 @@ def search_plot_with_serper(movie_title):
         print(f"Failed to retrieve plot: {response.status_code}")
         return "Error fetching plot"
 
+
 def search_review_with_serper(movie_title):
     url = "https://google.serper.dev/search"
-    payload = json.dumps({
-        "q": f"{movie_title} movie review",
-    })
-    headers = {
-        'X-API-KEY': SERPER_API_KEY, 
-        'Content-Type': 'application/json'
-    }
+    payload = json.dumps(
+        {
+            "q": f"{movie_title} movie review",
+        }
+    )
+    headers = {"X-API-KEY": SERPER_API_KEY, "Content-Type": "application/json"}
 
     response = requests.post(url, headers=headers, data=payload)
 
     if response.status_code == 200:
         data = response.json()
         review_snippets = []
-        for result in data.get('organic', []):
-            if "review" in result.get('title', '').lower() or "review" in result.get('snippet', '').lower():
-                review_snippets.append(result.get('snippet'))
+        for result in data.get("organic", []):
+            if (
+                "review" in result.get("title", "").lower()
+                or "review" in result.get("snippet", "").lower()
+            ):
+                review_snippets.append(result.get("snippet"))
         if review_snippets:
             review_summary = generate_review_summary(movie_title, review_snippets)
             return review_summary
@@ -129,7 +138,7 @@ def create_and_save_movie_review(tconst):
         "tconst": tconst,
         "primaryTitle": movie_title,
         "review": review,
-        "plot": plot
+        "plot": plot,
     }
 
     try:
@@ -139,32 +148,27 @@ def create_and_save_movie_review(tconst):
         print(f"Error: {e}")
         return {"status": 500, "message": "Internal server error"}, 500
 
+
 def get_movie_review(tconst):
     reviewslist_collection = get_mongo_collection("reviewslist")
 
     try:
         # Busca todas as reviews para o tconst específico
-        movie_reviews = list(reviewslist_collection.find(
-            {"tconst": tconst}, 
-            {"_id": 0}
-        ))
-        
+        movie_reviews = list(
+            reviewslist_collection.find({"tconst": tconst}, {"_id": 0})
+        )
+
         if movie_reviews:
             return {
                 "total_documents": len(movie_reviews),
-                "entries": movie_reviews
+                "entries": movie_reviews,
             }, 200
         else:
-            return {
-                "total_documents": 0,
-                "entries": []
-            }, 404
+            return {"total_documents": 0, "entries": []}, 404
     except Exception as e:
         print(f"Error: {e}")
-        return {
-            "total_documents": 0,
-            "entries": []
-        }, 500
+        return {"total_documents": 0, "entries": []}, 500
+
 
 def get_generated_reviews(filters={}, sorters=["_id", -1], page=1, page_size=10):
     collection = reviewslist_collection
@@ -183,10 +187,7 @@ def get_generated_reviews(filters={}, sorters=["_id", -1], page=1, page_size=10)
             item["_id"] = str(item["_id"])
             sanitize_movie_data(item)
 
-        return {
-            "total_documents": total_documents,
-            "entries": items
-        }, 200
+        return {"total_documents": total_documents, "entries": items}, 200
     except Exception as e:
         print(f"Error: {e}")
         return {"status": 500, "message": "Internal server error"}, 500

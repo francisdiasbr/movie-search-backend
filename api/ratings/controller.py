@@ -1,6 +1,7 @@
 from bson import ObjectId
 from config import get_mongo_collection
 
+
 def ratings_retrieve(tconst):
     collection = get_mongo_collection("titleratings")
 
@@ -19,47 +20,76 @@ def ratings_retrieve(tconst):
 
     return {"data": item}
 
+
 def ratings_search(filters={}, sorters=["tconst", -1], page=1, page_size=10):
     collection = get_mongo_collection("titleratings")
 
     if filters.get("_id"):
         filters["_id"] = ObjectId(filters["_id"])
 
-    if 'numVotes' in filters:
-        if isinstance(filters['numVotes'], dict):
-            if "$gt" in filters['numVotes']:
+    if "numVotes" in filters:
+        if isinstance(filters["numVotes"], dict):
+            if "$gt" in filters["numVotes"]:
                 try:
-                    filters['numVotes']['$gt'] = int(filters['numVotes']['$gt'])
+                    filters["numVotes"]["$gt"] = int(filters["numVotes"]["$gt"])
                 except ValueError:
-                    return {"payload": [], "total_documents": 0, "error": "numVotes must be an integer"}
-            if "$lt" in filters['numVotes']:
+                    return {
+                        "payload": [],
+                        "total_documents": 0,
+                        "error": "numVotes must be an integer",
+                    }
+            if "$lt" in filters["numVotes"]:
                 try:
-                    filters['numVotes']['$lt'] = int(filters['numVotes']['$lt'])
+                    filters["numVotes"]["$lt"] = int(filters["numVotes"]["$lt"])
                 except ValueError:
-                    return {"payload": [], "total_documents": 0, "error": "numVotes must be an integer"}
+                    return {
+                        "payload": [],
+                        "total_documents": 0,
+                        "error": "numVotes must be an integer",
+                    }
         else:
             try:
-                filters['numVotes'] = int(filters['numVotes'])
+                filters["numVotes"] = int(filters["numVotes"])
             except ValueError:
-                return {"payload": [], "total_documents": 0, "error": "numVotes must be an integer"}
+                return {
+                    "payload": [],
+                    "total_documents": 0,
+                    "error": "numVotes must be an integer",
+                }
 
-    if 'averageRating' in filters:
-        if isinstance(filters['averageRating'], dict):
-            if "$gt" in filters['averageRating']:
+    if "averageRating" in filters:
+        if isinstance(filters["averageRating"], dict):
+            if "$gt" in filters["averageRating"]:
                 try:
-                    filters['averageRating']['$gt'] = float(filters['averageRating']['$gt'])
+                    filters["averageRating"]["$gt"] = float(
+                        filters["averageRating"]["$gt"]
+                    )
                 except ValueError:
-                    return {"payload": [], "total_documents": 0, "error": "averageRating must be a float"}
-            if "$lt" in filters['averageRating']:
+                    return {
+                        "payload": [],
+                        "total_documents": 0,
+                        "error": "averageRating must be a float",
+                    }
+            if "$lt" in filters["averageRating"]:
                 try:
-                    filters['averageRating']['$lt'] = float(filters['averageRating']['$lt'])
+                    filters["averageRating"]["$lt"] = float(
+                        filters["averageRating"]["$lt"]
+                    )
                 except ValueError:
-                    return {"payload": [], "total_documents": 0, "error": "averageRating must be a float"}
+                    return {
+                        "payload": [],
+                        "total_documents": 0,
+                        "error": "averageRating must be a float",
+                    }
         else:
             try:
-                filters['averageRating'] = float(filters['averageRating'])
+                filters["averageRating"] = float(filters["averageRating"])
             except ValueError:
-                return {"payload": [], "total_documents": 0, "error": "averageRating must be a float"}
+                return {
+                    "payload": [],
+                    "total_documents": 0,
+                    "error": "averageRating must be a float",
+                }
 
     total_documents = 0
 
@@ -87,8 +117,9 @@ def ratings_search(filters={}, sorters=["tconst", -1], page=1, page_size=10):
 
     return {"total_documents": total_documents, "payload": documents}
 
+
 def movie_with_rating_retrieve(tconst):
-    basics_collection = get_mongo_collection("titlebasics")
+    basics_collection = get_mongo_collection("moviebasics")
 
     try:
         if not tconst:

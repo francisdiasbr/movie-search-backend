@@ -1,13 +1,14 @@
 from bs4 import BeautifulSoup
 import requests
 
+
 def get_movie_sm_plot(tconst):
     url = f"https://m.imdb.com/title/{tconst}/"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     response = requests.get(url, headers=headers)
-    
+
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "html.parser")
         plot_span = soup.find("span", {"data-testid": "plot-xs_to_m"})
@@ -23,18 +24,19 @@ def get_movie_poster(tconst):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     response = requests.get(url, headers=headers)
-    
+
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "html.parser")
         poster_div = soup.find("div", {"class": "ipc-poster"})
 
         if poster_div:
             poster_img = poster_div.find("img", {"class": "ipc-image"})
-            print('poster_img', poster_img)
+            print("poster_img", poster_img)
             if poster_img:
                 return poster_img["src"] if poster_img else "Poster not available"
     return "Poster not available"
-            
+
+
 def get_movie_country(tconst):
     url = f"https://m.imdb.com/title/{tconst}/"
     headers = {
@@ -57,13 +59,14 @@ def get_movie_country(tconst):
             return "Country not available"
     return "Country not available"
 
+
 def get_movie_trivia(tconst):
     url = f"https://m.imdb.com/title/{tconst}/trivia"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     response = requests.get(url, headers=headers)
-    
+
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "html.parser")
         content_divs = soup.find_all("div", {"class": "ipc-html-content-inner-div"})
@@ -83,7 +86,7 @@ def get_movie_quote(tconst):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     response = requests.get(url, headers=headers)
-    
+
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "html.parser")
         content_divs = soup.find_all("div", {"class": "ipc-html-content-inner-div"})
@@ -109,7 +112,7 @@ def get_wikipedia_url(movie_title):
     response = requests.get(url, headers=headers)
 
     if response.status_code == 200:
-        return url 
+        return url
     return "Wikipedia page not found"
 
 
@@ -125,7 +128,9 @@ def get_movie_plot_keywords(tconst):
         keywords_list = soup.find_all("li", {"data-testid": "list-summary-item"})
 
         # Extrai apenas strings para garantir que sejam serializáveis
-        keywords = [item.find("a").get_text() for item in keywords_list if item.find("a")]
+        keywords = [
+            item.find("a").get_text() for item in keywords_list if item.find("a")
+        ]
 
         # Retorna o array de strings diretamente
         return keywords if keywords else ["Keywords not available"]
@@ -139,7 +144,7 @@ def get_director(tconst):
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
     response = requests.get(url, headers=headers)
-    
+
     if response.status_code == 200:
         soup = BeautifulSoup(response.text, "html.parser")
         director_section = soup.find("li", {"data-testid": "title-pc-principal-credit"})

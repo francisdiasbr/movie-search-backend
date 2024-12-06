@@ -7,34 +7,41 @@ from favorites.controller import (
     favorite_movie,
     get_favorited_movie,
     get_favorited_movies,
-    get_magnet_link
+    get_magnet_link,
 )
 
 favorites_bp = Blueprint("favorites", __name__)
-api = Namespace('favorites', description='Operações relacionadas aos filmes favoritos')
+api = Namespace("favorites", description="Operações relacionadas aos filmes favoritos")
 
 # Modelos para o Swagger
-favorite_movie_model = api.model('FavoriteMovie', {
-    'primaryTitle': fields.String(description='Título do filme'),
-    'startYear': fields.Integer(description='Ano de lançamento'),
-    'soundtrack': fields.String(description='Link da trilha sonora'),
-    'wiki': fields.String(description='Link da Wikipedia')
-})
+favorite_movie_model = api.model(
+    "FavoriteMovie",
+    {
+        "primaryTitle": fields.String(description="Título do filme"),
+        "startYear": fields.Integer(description="Ano de lançamento"),
+        "soundtrack": fields.String(description="Link da trilha sonora"),
+        "wiki": fields.String(description="Link da Wikipedia"),
+    },
+)
 
-favorite_search_model = api.model('FavoriteSearch', {
-    'filters': fields.Raw(description='Filtros para a busca'),
-    'page': fields.Integer(description='Número da página', default=1),
-    'page_size': fields.Integer(description='Tamanho da página', default=10),
-    'search_term': fields.String(description='Termo de busca', default='')
-})
+favorite_search_model = api.model(
+    "FavoriteSearch",
+    {
+        "filters": fields.Raw(description="Filtros para a busca"),
+        "page": fields.Integer(description="Número da página", default=1),
+        "page_size": fields.Integer(description="Tamanho da página", default=10),
+        "search_term": fields.String(description="Termo de busca", default=""),
+    },
+)
+
 
 # Define the search route first
-@api.route('/search')
+@api.route("/search")
 class FavoriteMovieSearch(Resource):
-    @api.doc('search_favorite_movies')
+    @api.doc("search_favorite_movies")
     @api.expect(favorite_search_model)
-    @api.response(200, 'Sucesso')
-    @api.response(400, 'Dados de entrada inválidos')
+    @api.response(200, "Sucesso")
+    @api.response(400, "Dados de entrada inválidos")
     def post(self):
         """Pesquisa filmes favoritados"""
         request_data = request.get_json()
@@ -44,57 +51,59 @@ class FavoriteMovieSearch(Resource):
             filters=request_data.get("filters", {}),
             page=request_data.get("page", 1),
             page_size=request_data.get("page_size", 10),
-            search_term=request_data.get("search_term", "")
+            search_term=request_data.get("search_term", ""),
         )
 
+
 # Define other routes after the search route
-@api.route('/<string:tconst>')
+@api.route("/<string:tconst>")
 class FavoriteMovie(Resource):
-    @api.doc('get_favorite_movie')
-    @api.response(200, 'Sucesso')
-    @api.response(404, 'Filme não encontrado')
+    @api.doc("get_favorite_movie")
+    @api.response(200, "Sucesso")
+    @api.response(404, "Filme não encontrado")
     def get(self, tconst):
         """Recupera um filme favoritado"""
         return get_favorited_movie(tconst)
 
-    @api.doc('add_favorite_movie')
-    @api.response(201, 'Filme adicionado com sucesso')
-    @api.response(409, 'Filme já está na lista')
+    @api.doc("add_favorite_movie")
+    @api.response(201, "Filme adicionado com sucesso")
+    @api.response(409, "Filme já está na lista")
     def post(self, tconst):
         """Adiciona um filme aos favoritos"""
         return favorite_movie(tconst)
 
-    @api.doc('update_favorite_movie')
+    @api.doc("update_favorite_movie")
     @api.expect(favorite_movie_model)
-    @api.response(200, 'Filme atualizado com sucesso')
-    @api.response(404, 'Filme não encontrado')
+    @api.response(200, "Filme atualizado com sucesso")
+    @api.response(404, "Filme não encontrado")
     def put(self, tconst):
         """Atualiza um filme favoritado"""
         request_data = request.get_json()
         return edit_favorited_movie(
             tconst,
-            request_data.get('soundtrack'),
-            request_data.get('wiki'),
-            request_data.get('watched')
+            request_data.get("soundtrack"),
+            request_data.get("wiki"),
+            request_data.get("watched"),
         )
 
-    @api.doc('delete_favorite_movie')
-    @api.response(200, 'Filme removido com sucesso')
-    @api.response(404, 'Filme não encontrado')
+    @api.doc("delete_favorite_movie")
+    @api.response(200, "Filme removido com sucesso")
+    @api.response(404, "Filme não encontrado")
     def delete(self, tconst):
         """Remove um filme dos favoritos"""
         return delete_favorited_movie(tconst)
 
 
-@api.route('/magnet-link/<string:tconst>')
+@api.route("/magnet-link/<string:tconst>")
 class TorrentMagnet(Resource):
-    @api.doc('get_magnet_link')
-    @api.response(200, 'Sucesso')
-    @api.response(404, 'Filme não encontrado')
+    @api.doc("get_magnet_link")
+    @api.response(200, "Sucesso")
+    @api.response(404, "Filme não encontrado")
     def get(self, tconst):
         """Obtém o link magnet para o filme especificado"""
         result, status_code = get_magnet_link(tconst)
 
         return result, status_code
+
 
 favorites_bp.api = api
