@@ -13,6 +13,7 @@ def read_tsv(file_path):
     print(f'Iniciando a leitura do arquivo TSV: {file_path}')
     try:
         df = pd.read_csv(file_path, sep='\t', low_memory=False)
+        df = df[df['titleType'] == 'movie']
         print(f'Leitura do arquivo TSV concluída: {file_path}')
         return df
     except Exception as e:
@@ -28,7 +29,7 @@ def insert_into_mongo(collection_name, dataframe):
       
         dataframe['startYear'] = pd.to_numeric(dataframe['startYear'], errors='coerce')
 
-        dataframe.drop(columns=['genres', 'endYear', 'runtimeMinutes', 'isAdult', 'titleType'], inplace=True)
+        dataframe.drop(columns=['genres', 'endYear', 'runtimeMinutes', 'isAdult'], inplace=True)
 
         data_dict = dataframe.to_dict(orient='records')
         collection.insert_many(data_dict)
