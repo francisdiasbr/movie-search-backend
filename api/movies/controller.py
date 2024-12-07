@@ -96,3 +96,27 @@ def get_movies(filters=None, sorters=None, page=1, page_size=10, search_term="")
         print(f"Error: {e}")
         # Retorna um dicionário de erro
         return {"status": 500, "message": "Internal server error"}, 500
+
+
+def get_movie(tconst):
+    basics_collection = get_mongo_collection("moviebasics")
+    
+    try:
+        if not tconst:
+            return {"data": "Id is required"}
+
+        movie_details = basics_collection.find_one({"tconst": tconst})
+        if movie_details:
+            result = {
+                "originalTitle": movie_details.get("originalTitle"),
+                "primaryTitle": movie_details.get("primaryTitle"),
+                "startYear": movie_details.get("startYear"),
+                "tconst": movie_details.get("tconst"),
+            }
+            return {"data": result}
+        else:
+            return {"status": 404, "data": "Movie details not found"}
+
+    except Exception as e:
+        print(f"{e}")
+        return {"status": 400, "data": "Exception when retrieving item"}

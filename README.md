@@ -210,9 +210,6 @@ A API estará disponível em `http://localhost:5001`
 │   ├── 📁 movies/
 │   │   ├── 📄 controller.py
 │   │   └── 📄 routes.py
-│   ├── 📁 ratings/
-│   │   ├── 📄 controller.py
-│   │   └── 📄 routes.py
 │   ├── 📄 requirements.txt
 │   ├── 📁 spotify/
 │   │   └── 📄 controller.py
@@ -225,7 +222,6 @@ A API estará disponível em `http://localhost:5001`
 │       └── 📄 routes.py
 └── 📁 data_ingestion/
     ├── 📄 ingest.title_basics.py
-    ├── 📄 ingest.title_ratings.py
     └── 📄 requirements.txt
 
 ```

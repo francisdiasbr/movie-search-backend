@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
 
-from movies.controller import get_movies
+from movies.controller import get_movies, get_movie
 
 movies_bp = Blueprint("movies", __name__)
 api = Namespace("movies", description="Busca de filmes na base de dados")
@@ -43,6 +43,14 @@ class MovieSearch(Resource):
             page_size=request_data.get("page_size", 10),
             search_term=request_data.get("search_term", ""),
         )
+
+
+@api.route("/<tconst>")
+class Movie(Resource):
+    @api.doc("get_movie")
+    @api.response(200, "Sucesso")
+    def get(self, tconst):
+        return get_movie(tconst)
 
 
 movies_bp.api = api

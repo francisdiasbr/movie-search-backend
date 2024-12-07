@@ -14,7 +14,7 @@ from favorites.scrapper import (
     get_director,
     get_movie_genres,
 )
-from ratings.controller import movie_with_rating_retrieve
+from movies.controller import get_movie
 from spotify.controller import get_album_by_movie_title
 from utils import sanitize_movie_data
 
@@ -83,7 +83,7 @@ def favorite_movie(tconst):
         return {"data": "Movie already listed"}, 409
 
     # Recupera informações do filme com avaliação
-    movie_info = movie_with_rating_retrieve(tconst)
+    movie_info = get_movie(tconst)
     print(f"Retrieved movie info: {movie_info}")  # Log para informações do filme
 
     if movie_info.get("status") == 404:
@@ -110,18 +110,27 @@ def favorite_movie(tconst):
         movie_data["magnet_link"] = magnet_link_response[0]["data"]
 
     # Adiciona informações do filme
+    
     movie_data["country"] = get_movie_country(tconst)
+    
     movie_data["director"] = get_director(tconst)
-    movie_data["plot"] = get_movie_sm_plot(tconst)
-    movie_data["plot_keywords"] = get_movie_plot_keywords(tconst)
-    movie_data["quote"] = get_movie_quote(tconst)
-    movie_data["soundtrack"] = get_album_by_movie_title(movie_title)
-    movie_data["trivia"] = get_movie_trivia(tconst)
-    movie_data["wiki"] = get_wikipedia_url(movie_title)
+    
     movie_data["genres"] = get_movie_genres(tconst)
-
+    
+    movie_data["plot"] = get_movie_sm_plot(tconst)
+    
+    movie_data["plot_keywords"] = get_movie_plot_keywords(tconst)
+    
+    movie_data["quote"] = get_movie_quote(tconst)
+    
+    movie_data["soundtrack"] = get_album_by_movie_title(movie_title)
+    
+    movie_data["trivia"] = get_movie_trivia(tconst)
+    
     movie_data["watched"] = False
 
+    movie_data["wiki"] = get_wikipedia_url(movie_title)
+    
     # Insere as informações na coleção favoritelist
     try:
         result = collection.insert_one(movie_data)

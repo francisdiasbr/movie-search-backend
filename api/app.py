@@ -6,7 +6,6 @@ import config
 from favorites.routes import favorites_bp
 from generate_review.routes import generate_review_bp
 from movies.routes import movies_bp
-from ratings.routes import ratings_bp
 from suggestion.routes import suggestion_bp
 from write_review.routes import write_review_bp
 from keywords.routes import keywords_bp
@@ -41,7 +40,6 @@ api = Api(
 app.register_blueprint(favorites_bp)
 app.register_blueprint(generate_review_bp)
 app.register_blueprint(movies_bp)
-app.register_blueprint(ratings_bp)
 app.register_blueprint(suggestion_bp)
 app.register_blueprint(write_review_bp)
 app.register_blueprint(keywords_bp)
