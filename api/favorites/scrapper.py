@@ -155,3 +155,22 @@ def get_director(tconst):
             return director_name
 
     return "Director not available"
+
+
+def get_movie_genres(tconst):
+    url = f"https://m.imdb.com/title/{tconst}/"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    response = requests.get(url, headers=headers)
+
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        genres_div = soup.find("div", {"data-testid": "interests"})
+        
+        if genres_div:
+            genre_spans = genres_div.find_all("span", {"class": "ipc-chip__text"})
+            genres = [span.get_text() for span in genre_spans]
+            return genres if genres else ["Genres not available"]
+    
+    return ["Error retrieving genres"]

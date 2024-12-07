@@ -12,6 +12,7 @@ from favorites.scrapper import (
     get_movie_trivia,
     get_movie_plot_keywords,
     get_director,
+    get_movie_genres,
 )
 from ratings.controller import movie_with_rating_retrieve
 from spotify.controller import get_album_by_movie_title
@@ -117,6 +118,7 @@ def favorite_movie(tconst):
     movie_data["soundtrack"] = get_album_by_movie_title(movie_title)
     movie_data["trivia"] = get_movie_trivia(tconst)
     movie_data["wiki"] = get_wikipedia_url(movie_title)
+    movie_data["genres"] = get_movie_genres(tconst)
 
     movie_data["watched"] = False
 
