@@ -2,6 +2,7 @@ from flask import request, jsonify
 import math
 import requests
 from config import get_mongo_collection, RAPIDAPI_API_KEY
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from favorites.scrapper import (
     get_movie_sm_plot,
@@ -13,13 +14,14 @@ from favorites.scrapper import (
     get_movie_plot_keywords,
     get_director,
     get_movie_genres,
+    get_movie_stars,
+    get_writers,
 )
 from movies.controller import get_movie
 from spotify.controller import get_album_by_movie_title
 from utils import sanitize_movie_data
 
 
-# Recupera o magnet link do filme
 def get_magnet_link(tconst):
     # Define a URL base
     search_url = f"https://movie_torrent_api1.p.rapidapi.com/search/{tconst}"
@@ -65,86 +67,80 @@ def get_magnet_link(tconst):
         }, response.status_code
 
 
-# Adiciona um filme à lista de favoritos
 def favorite_movie(tconst):
     if not tconst:
-        print("Error: tconst is required")  # Log para tconst ausente
+        print("Error: tconst is required")
         return {"data": "tconst is required"}, 400
 
     collection = get_mongo_collection("favoritelist")
 
-    # Verifica se o filme já está na lista de favoritos
     existing_movie = collection.find_one({"tconst": tconst})
     print(
         f"Checking if movie with tconst {tconst} already exists: {existing_movie is not None}"
-    )  # Log para verificação de duplicatas
+    )
 
     if existing_movie:
         return {"data": "Movie already listed"}, 409
 
-    # Recupera informações do filme com avaliação
     movie_info = get_movie(tconst)
-    print(f"Retrieved movie info: {movie_info}")  # Log para informações do filme
+    print(f"Retrieved movie info: {movie_info}")
 
     if movie_info.get("status") == 404:
-        print("Movie not found in ratings")  # Log para filme não encontrado
+        print("Movie not found in ratings")
         return {"status": 404, "data": movie_info["data"]}, 404
     elif movie_info.get("status") == 400:
-        print("Bad request for movie info")  # Log para requisição inválida
+        print("Bad request for movie info")
         return {"status": 400, "data": movie_info["data"]}, 400
 
     movie_data = movie_info["data"]
-
     movie_title = movie_data.get("primaryTitle")
     print(f"Movie title: {movie_title}")
 
-    # Recupera o magnet link do filme
-    magnet_link_response = get_magnet_link(tconst)
-    print(f"Magnet link response: {magnet_link_response}")
-    if magnet_link_response[1] != 200:
-        print("Failed to retrieve magnet link")
-        movie_data["magnet_link"] = (
-            magnet_link_response[0]["data"] if magnet_link_response[1] == 200 else None
-        )
-    else:
-        movie_data["magnet_link"] = magnet_link_response[0]["data"]
+    # Funções de scraping a serem executadas em paralelo
+    def fetch_data():
+        with ThreadPoolExecutor() as executor:
+            futures = {
+                executor.submit(get_magnet_link, tconst): "magnet_link",
+                executor.submit(get_movie_country, tconst): "country",
+                executor.submit(get_director, tconst): "director",
+                executor.submit(get_movie_genres, tconst): "genres",
+                executor.submit(get_movie_sm_plot, tconst): "plot",
+                executor.submit(get_movie_plot_keywords, tconst): "plot_keywords",
+                executor.submit(get_movie_quote, tconst): "quote",
+                executor.submit(get_album_by_movie_title, movie_title): "soundtrack",
+                executor.submit(get_movie_stars, tconst): "stars",
+                executor.submit(get_movie_trivia, tconst): "trivia",
+                executor.submit(get_wikipedia_url, movie_title): "wiki",
+                executor.submit(get_writers, tconst): "writers",
+            }
 
-    # Adiciona informações do filme
-    
-    movie_data["country"] = get_movie_country(tconst)
-    
-    movie_data["director"] = get_director(tconst)
-    
-    movie_data["genres"] = get_movie_genres(tconst)
-    
-    movie_data["plot"] = get_movie_sm_plot(tconst)
-    
-    movie_data["plot_keywords"] = get_movie_plot_keywords(tconst)
-    
-    movie_data["quote"] = get_movie_quote(tconst)
-    
-    movie_data["soundtrack"] = get_album_by_movie_title(movie_title)
-    
-    movie_data["trivia"] = get_movie_trivia(tconst)
-    
+            for future in as_completed(futures):
+                key = futures[future]
+                try:
+                    result = future.result()
+                    if key == "magnet_link":
+                        movie_data[key] = result[0]["data"] if result[1] == 200 else None
+                    else:
+                        movie_data[key] = result
+                except Exception as e:
+                    print(f"Error fetching {key}: {e}")
+                    movie_data[key] = None
+
+    fetch_data()
+
     movie_data["watched"] = False
 
-    movie_data["wiki"] = get_wikipedia_url(movie_title)
-    
     # Insere as informações na coleção favoritelist
     try:
         result = collection.insert_one(movie_data)
-        # Recupera o documento inserido
         inserted_movie = collection.find_one({"_id": result.inserted_id})
         if inserted_movie:
             inserted_movie["_id"] = str(inserted_movie["_id"])
             return {"data": inserted_movie}, 201
-        print(
-            "Failed to retrieve inserted movie"
-        )  # Log para falha na recuperação do filme inserido
+        print("Failed to retrieve inserted movie")
         return {"data": "Failed to retrieve inserted movie"}, 500
     except Exception as e:
-        print(f"Error during insertion: {e}")  # Log para erro durante a inserção
+        print(f"Error during insertion: {e}")
         return {"data": "Failed to list movie"}, 500
 
 
@@ -207,9 +203,7 @@ def delete_favorited_movie(tconst):
 
 
 # Recupera os filmes favoritados
-def get_favorited_movies(
-    filters={}, sorters=["_id", -1], page=1, page_size=10, search_term=""
-):
+def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, search_term=""):
     collection = get_mongo_collection("favoritelist")
 
     search_term = search_term or filters.get("search_term") or filters.get("tconst")
