@@ -62,7 +62,7 @@ def get_favorited_directors():
     collection = get_mongo_collection(COLLECTION_NAME)
 
     try:
-        directors = list(collection.find({}, {"_id": 1, "director": 1, "filmography": 1, "personal_info": 1}))
+        directors = list(collection.find({}, {"_id": 1, "director": 1}))
         # Converte ObjectId para string
         for director in directors:
             director["_id"] = str(director["_id"])

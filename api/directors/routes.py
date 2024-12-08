@@ -52,7 +52,16 @@ class DirectorList(Resource):
             api_key = os.getenv("OPENAI_API_KEY")
             model = "gpt-4o"
 
+            # Chama a função para adicionar o diretor e obter a resposta
             response, status_code = add_director(director, api_key, model)
+
+            # Verifica se a resposta contém os dados necessários
+            if status_code == 200 and "data" in response:
+                director_info = response["data"]
+                if "movies" not in director_info or "personal_info" not in director_info:
+                    print("Dados incompletos recebidos para o diretor")
+                    return {"data": "Incomplete director data received"}, 500
+
             elapsed_time = time.perf_counter() - start_time  # Fim da medição de tempo
             print(f"Tempo para adicionar diretor: {elapsed_time:.2f} segundos")
             return response, status_code

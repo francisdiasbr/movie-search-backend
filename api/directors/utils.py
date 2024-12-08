@@ -18,11 +18,13 @@ class PersonalInfo(BaseModel):
     birth_date: Optional[str] = Field(description="Data de nascimento do diretor")
     marital_status: Optional[str] = Field(description="Estado civil do diretor")
     relationships: Optional[int] = Field(description="Número de relacionamentos do diretor")
-    personal_aspects: Optional[str] = Field(description="Aspectos pessoais do diretor")
+    personal_aspects: Optional[str] = Field(description="Gênero e tema dos filmes dirigidos")
+    career_start_year: Optional[int] = Field(description="Ano em que o diretor começou a carreira")
+    directed_movies: Optional[int] = Field(description="Número total de filmes dirigidos")
 
 class DirectorInfo(BaseModel):
     """Esquema para informações completas do diretor"""
-    movies: List[Movie] = Field(description="Lista de filmes dirigidos")
+    movies: List[Movie] = Field(description="Lista dos filmes dirigidos")
     personal_info: PersonalInfo = Field(description="Informações pessoais do diretor")
 
 
@@ -59,6 +61,10 @@ def get_director_info(api_key, director_name, model):
         llm_chain = route_prompt | llm_router
 
         response = llm_decorator(llm_chain, data_object)
+
+        # Verifica se a resposta contém os dados necessários
+        if not response or not response.dict().get("movies") or not response.dict().get("personal_info"):
+            raise ValueError("Dados incompletos recebidos do LLM")
 
         director_info = response.dict()  # Acessa todas as informações do diretor
 
