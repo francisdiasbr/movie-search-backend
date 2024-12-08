@@ -6,6 +6,14 @@ flask-restx
 
 flask_cors
 
+langchain
+
+langchain-core
+
+langchain-openai
+
+langchain-community
+
 openai
 
 pre-commit
