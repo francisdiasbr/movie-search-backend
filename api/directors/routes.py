@@ -6,7 +6,8 @@ from directors.controller import (
     delete_favorited_director,
 )
 from urllib.parse import unquote
-import os  # Import necessário para acessar variáveis de ambiente
+import os
+import time
 
 directors_bp = Blueprint("directors", __name__)
 api = Namespace(
@@ -36,6 +37,7 @@ class DirectorList(Resource):
         """Adiciona um diretor aos favoritos"""
         print("Requisição para adicionar diretor recebida")
         try:
+            start_time = time.perf_counter()  # Início da medição de tempo
             request_data = request.get_json() or {}
 
             if not isinstance(request_data, dict) or "director" not in request_data:
@@ -47,12 +49,12 @@ class DirectorList(Resource):
                 print("Nome do diretor está vazio")
                 return {"data": "Director cannot be empty"}, 400
 
-            # Obtenha a chave da API e o modelo
             api_key = os.getenv("OPENAI_API_KEY")
-            model = "gpt-4"  # ou qualquer modelo que você esteja usando
+            model = "gpt-4o"
 
-            # Chame add_director com os argumentos necessários
             response, status_code = add_director(director, api_key, model)
+            elapsed_time = time.perf_counter() - start_time  # Fim da medição de tempo
+            print(f"Tempo para adicionar diretor: {elapsed_time:.2f} segundos")
             return response, status_code
 
         except Exception as e:
