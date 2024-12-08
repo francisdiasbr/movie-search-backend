@@ -90,4 +90,24 @@ def delete_favorited_director(director):
         return {"data": "Failed to delete director"}, 500
 
 
+def get_director_details(director):
+    """Recupera todas as propriedades de um diretor específico"""
+
+    if not director:
+        return {"data": "Director is required"}, 400
+
+    collection = get_mongo_collection(COLLECTION_NAME)
+
+    try:
+        director_data = collection.find_one({"director": director})
+        if director_data:
+            # Converte ObjectId para string
+            director_data["_id"] = str(director_data["_id"])
+            return {"data": director_data}, 200
+        return {"data": "Director not found"}, 404
+    except Exception as e:
+        print(f"Error: {e}")
+        return {"data": "Failed to retrieve director details"}, 500
+
+
 

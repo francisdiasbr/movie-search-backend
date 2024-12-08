@@ -4,6 +4,7 @@ from directors.controller import (
     add_director,
     get_favorited_directors,
     delete_favorited_director,
+    get_director_details,
 )
 from urllib.parse import unquote
 import os
@@ -19,15 +20,17 @@ director_model = api.model(
     {"director": fields.String(required=True, description="Nome do diretor")},
 )
 
-
+# Rotas para recuperar a lista de diretores favoritos e adicionar diretores aos favoritos
 @api.route("/")
 class DirectorList(Resource):
+    # Rota para recuperar a lista de diretores favoritos
     @api.doc("get_favorited_directors")
     @api.response(200, "Sucesso")
     def get(self):
         print("Requisição para recuperar diretores favoritos recebida")
         return get_favorited_directors()
 
+    # Rota para adicionar um diretor aos favoritos
     @api.doc("add_director")
     @api.expect(director_model)
     @api.response(201, "Diretor adicionado com sucesso")
@@ -70,9 +73,21 @@ class DirectorList(Resource):
             print(f"Erro ao processar requisição: {e}")
             return {"data": "Invalid request format"}, 400
 
-
+# Rotas para recuperar e deletardetalhes do diretor    
 @api.route("/<string:director>")
 class Director(Resource):
+    # Rota para recuperar detalhes do diretor
+    @api.doc("get_director_details")
+    @api.response(200, "Sucesso")
+    @api.response(404, "Diretor não encontrado")
+    def get(self, director):
+        """Recupera todas as propriedades de um diretor específico"""
+        # Decodifica o nome do diretor para lidar com espaços e caracteres especiais
+        decoded_director = unquote(director)
+        print(f"Requisição para recuperar detalhes do diretor: {decoded_director}")
+        return get_director_details(decoded_director)
+
+    # Rota para remover um diretor dos favoritos
     @api.doc("delete_favorite_director")
     @api.response(200, "Diretor removido com sucesso")
     @api.response(404, "Diretor não encontrado")
