@@ -3,6 +3,7 @@ import math
 import requests
 from config import get_mongo_collection, RAPIDAPI_API_KEY
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import time
 
 from favorites.scrapper import (
     get_movie_sm_plot,
@@ -116,8 +117,11 @@ def favorite_movie(tconst):
 
             for future in as_completed(futures):
                 key = futures[future]
+                start_time = time.perf_counter()  # Usa perf_counter para maior precisão
                 try:
                     result = future.result()
+                    elapsed_time = time.perf_counter() - start_time  # Calcula o tempo decorrido
+                    print(f"Tempo para {key}: {elapsed_time:.6f} segundos")  # Mostra mais casas decimais
                     if key == "magnet_link":
                         movie_data[key] = result[0]["data"] if result[1] == 200 else None
                     else:
