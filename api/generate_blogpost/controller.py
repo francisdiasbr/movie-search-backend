@@ -80,11 +80,23 @@ def get_blogposts(filters={}, page=1, page_size=10):
         page = int(page)
         page_size = int(page_size)
         
-        total_documents = blogposts_collection.count_documents(filters)
+        # Converte filtros de texto para regex case-insensitive
+        search_filters = {}
+        text_fields = ["tconst", "primaryTitle", "title", "introduction", 
+                      "historical_context", "cultural_importance", 
+                      "technical_analysis", "conclusion"]
+        
+        for key, value in filters.items():
+            if key in text_fields and isinstance(value, str):
+                search_filters[key] = {"$regex": value, "$options": "i"}
+            else:
+                search_filters[key] = value
+        
+        total_documents = blogposts_collection.count_documents(search_filters)
         skip = (page - 1) * page_size
         
         posts = list(
-            blogposts_collection.find(filters, {"_id": 0})
+            blogposts_collection.find(search_filters, {"_id": 0})
             .sort("_id", -1)
             .skip(skip)
             .limit(page_size)
