@@ -38,10 +38,21 @@ movie_data_model = api.model(
 blog_post_model = api.model(
     "BlogPost",
     {
-        "tconst": fields.String(description="ID do filme"),
-        "primaryTitle": fields.String(description="Título do filme"),
-        "blogPost": fields.String(description="Conteúdo da postagem do blog"),
-        "movieData": fields.Nested(movie_data_model, description="Dados completos do filme")
+        "data": fields.Nested(api.model("BlogPostData", {
+            "tconst": fields.String(description="ID do filme"),
+            "primaryTitle": fields.String(description="Título do filme"),
+            "title": fields.String(description="Título da postagem"),
+            "introduction": fields.String(description="Introdução da postagem"),
+            "historical_context": fields.String(description="Contexto histórico"),
+            "cultural_importance": fields.String(description="Importância cultural"),
+            "technical_analysis": fields.String(description="Análise técnica"),
+            "conclusion": fields.String(description="Conclusão"),
+            "movieData": fields.Nested(api.model("MovieDataSimplified", {
+                "country": fields.String(description="País de origem"),
+                "plot_keywords": fields.List(fields.String, description="Palavras-chave do enredo"),
+                "quote": fields.String(description="Citação do filme")
+            }))
+        }))
     }
 )
 

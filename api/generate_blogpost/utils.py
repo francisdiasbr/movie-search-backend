@@ -15,9 +15,9 @@ class BlogPost(BaseModel):
     conclusion: str = Field(description="Conclusão que convide à reflexão")
 
 # Função para gerar uma postagem de blog
-def generate_blog_post(api_key, movie_data, model):
+def generate_blog_post(api_key, movie_data, model, temperature=0.7, max_tokens=1500):
     start_time = time.perf_counter()  # Início da medição de tempo
-    llm = ChatOpenAI(api_key=api_key, model=model)
+    llm = ChatOpenAI(api_key=api_key, model=model, temperature=temperature, max_tokens=max_tokens)
 
     # Criação da instrução dentro da função
     instruction = (
