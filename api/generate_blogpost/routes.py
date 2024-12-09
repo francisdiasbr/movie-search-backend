@@ -1,5 +1,6 @@
 from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
+import os
 
 from generate_blogpost.controller import (
     create_and_save_blog_post,
@@ -13,6 +14,26 @@ api = Namespace(
     description="Operações relacionadas à geração de postagens de blog sobre filmes"
 )
 
+# Modelo para os dados do filme
+movie_data_model = api.model(
+    "MovieData",
+    {
+        "country": fields.String(description="País de origem"),
+        "director": fields.String(description="Diretor do filme"),
+        "genres": fields.List(fields.String, description="Gêneros do filme"),
+        "originalTitle": fields.String(description="Título original do filme"),
+        "plot_keywords": fields.List(fields.String, description="Palavras-chave do enredo"),
+        "quote": fields.String(description="Citação do filme"),
+        "soundtrack": fields.String(description="Link para trilha sonora"),
+        "startYear": fields.Float(description="Ano de lançamento"),
+        "stars": fields.List(fields.String, description="Elenco principal"),
+        "tconst": fields.String(description="ID do filme"),
+        "trivia": fields.String(description="Curiosidades sobre o filme"),
+        "wiki": fields.String(description="Link para Wikipedia"),
+        "writers": fields.List(fields.String, description="Lista de escritores"),
+    }
+)
+
 # Modelos para o Swagger
 blog_post_model = api.model(
     "BlogPost",
@@ -20,7 +41,7 @@ blog_post_model = api.model(
         "tconst": fields.String(description="ID do filme"),
         "primaryTitle": fields.String(description="Título do filme"),
         "blogPost": fields.String(description="Conteúdo da postagem do blog"),
-        "movieData": fields.Raw(description="Dados completos do filme", attribute="movie_data")
+        "movieData": fields.Nested(movie_data_model, description="Dados completos do filme")
     }
 )
 
@@ -59,7 +80,9 @@ class MovieBlogPost(Resource):
     @api.marshal_with(blog_post_model)
     def post(self, tconst):
         """Cria e salva uma postagem de blog para um filme favoritado"""
-        return create_and_save_blog_post(tconst)
+        api_key = os.getenv("OPENAI_API_KEY")
+        model = "gpt-4o"
+        return create_and_save_blog_post(tconst, api_key, model)
 
 @api.route("/search")
 class BlogPostSearch(Resource):

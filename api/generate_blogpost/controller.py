@@ -1,68 +1,31 @@
-from flask import jsonify
-from openai import OpenAI
+from flask import request, jsonify
 import os
-
 from config import get_mongo_collection
-from utils import sanitize_movie_data
+from .utils import generate_blog_post
+import time
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+COLLECTION_NAME = "blogposts"
 
-blogposts_collection = get_mongo_collection("blogposts")
-
-def generate_blog_post(movie_data):
-    """Gera uma postagem de blog baseada nos dados do filme"""
-    
-    messages = [
-        {
-            "role": "system",
-            "content": "Você é um blogueiro especializado em cinema que escreve em português. Seu estilo é envolvente e informativo.",
-        },
-        {
-            "role": "user",
-            "content": f"""
-            Crie uma postagem de blog sobre o filme usando estas informações:
-            
-            Título: {movie_data.get('primaryTitle')}
-            Ano: {movie_data.get('startYear')}
-            Gêneros: {movie_data.get('genres', [])}
-            Diretor: {movie_data.get('directors', [])}
-            Elenco: {movie_data.get('actors', [])}
-            
-            A postagem deve incluir:
-            1. Um título criativo
-            2. Introdução cativante
-            3. Análise do contexto histórico
-            4. Discussão sobre a importância cultural do filme
-            5. Análise dos elementos técnicos e artísticos
-            6. Conclusão que convide à reflexão
-            """,
-        },
-    ]
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4", 
-            messages=messages, 
-            max_tokens=1500, 
-            temperature=0.7
-        )
-        
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"Erro ao gerar blog post: {e}")
-        return None
-
-def create_and_save_blog_post(tconst):
+def create_and_save_blog_post(tconst, api_key, model):
     """Cria e salva uma postagem de blog para um filme favoritado"""
+    start_time = time.perf_counter()  # Início da medição de tempo
+
     favoritelist_collection = get_mongo_collection("favoritelist")
     
     movie = favoritelist_collection.find_one({"tconst": tconst})
     if not movie:
         return {"status": 404, "message": "Filme não encontrado nos favoritos"}, 404
 
-    blog_post = generate_blog_post(movie)
-    if not blog_post:
+    # print("Dados do filme:", movie)
+
+    # Chama a função para gerar a postagem de blog
+    blog_post_response = generate_blog_post(api_key, movie, model)
+
+    # Verifica se a geração da postagem foi bem-sucedida
+    if blog_post_response[1] != 200:
         return {"status": 500, "message": "Erro ao gerar postagem do blog"}, 500
+
+    blog_post = blog_post_response[0].get("data")
 
     blog_data = {
         "tconst": tconst,
@@ -72,7 +35,10 @@ def create_and_save_blog_post(tconst):
     }
 
     try:
+        blogposts_collection = get_mongo_collection(COLLECTION_NAME)
         blogposts_collection.insert_one(blog_data)
+        elapsed_time = time.perf_counter() - start_time  # Fim da medição de tempo
+        print(f"Tempo para criar e salvar postagem de blog: {elapsed_time:.6f} segundos")
         return blog_data, 200
     except Exception as e:
         print(f"Erro: {e}")
