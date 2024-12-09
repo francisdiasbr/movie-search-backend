@@ -35,12 +35,12 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
         "cultural_importance": blog_post.get("cultural_importance"),
         "technical_analysis": blog_post.get("technical_analysis"),
         "conclusion": blog_post.get("conclusion"),
-        "movieData": {
-            "country": movie.get("country"),
-            "plot_keywords": movie.get("plot_keywords"),
-            "quote": movie.get("quote"),
-            # Adicione outros campos do movieData que desejar
-        }
+        # "movieData": {
+        #     "country": movie.get("country"),
+        #     "plot_keywords": movie.get("plot_keywords"),
+        #     "quote": movie.get("quote"),
+        #     # Adicione outros campos do movieData que desejar
+        # }
     }
 
     try:
@@ -57,40 +57,41 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
 def get_blog_post(tconst):
     """Recupera a postagem do blog para um filme específico"""
     try:
-        blog_posts = list(
-            blogposts_collection.find({"tconst": tconst}, {"_id": 0})
-        )
+        blogposts_collection = get_mongo_collection(COLLECTION_NAME)
         
-        if blog_posts:
-            return {
-                "total_documents": len(blog_posts),
-                "entries": blog_posts
-            }, 200
+        blog_post = blogposts_collection.find_one({"tconst": tconst}, {"_id": 0})
+        
+        if blog_post:
+            # Mantém a mesma estrutura do POST
+            return {"data": blog_post}, 200
         else:
-            return {"total_documents": 0, "entries": []}, 404
+            return {"data": "Blog post not found"}, 404
     except Exception as e:
         print(f"Erro: {e}")
-        return {"total_documents": 0, "entries": []}, 500
+        return {"data": "Failed to retrieve blog post"}, 500
 
 
 def get_all_blog_posts(filters={}, page=1, page_size=10):
     """Recupera todas as postagens de blog com paginação"""
     try:
+        blogposts_collection = get_mongo_collection(COLLECTION_NAME)
+        
         total_documents = blogposts_collection.count_documents(filters)
         skip = (page - 1) * page_size
         
-        items = list(
-            blogposts_collection.find(filters)
+        posts = list(
+            blogposts_collection.find(filters, {"_id": 0})
             .sort("_id", -1)
             .skip(skip)
             .limit(page_size)
         )
 
-        for item in items:
-            item["_id"] = str(item["_id"])
-            sanitize_movie_data(item)
-
-        return {"total_documents": total_documents, "entries": items}, 200
+        return {
+            "data": {
+                "total_documents": total_documents,
+                "entries": posts
+            }
+        }, 200
     except Exception as e:
         print(f"Erro: {e}")
-        return {"status": 500, "message": "Erro interno do servidor"}, 500 
+        return {"data": "Failed to retrieve blog posts"}, 500 

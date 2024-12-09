@@ -15,24 +15,24 @@ api = Namespace(
 )
 
 # Modelo para os dados do filme
-movie_data_model = api.model(
-    "MovieData",
-    {
-        "country": fields.String(description="País de origem"),
-        "director": fields.String(description="Diretor do filme"),
-        "genres": fields.List(fields.String, description="Gêneros do filme"),
-        "originalTitle": fields.String(description="Título original do filme"),
-        "plot_keywords": fields.List(fields.String, description="Palavras-chave do enredo"),
-        "quote": fields.String(description="Citação do filme"),
-        "soundtrack": fields.String(description="Link para trilha sonora"),
-        "startYear": fields.Float(description="Ano de lançamento"),
-        "stars": fields.List(fields.String, description="Elenco principal"),
-        "tconst": fields.String(description="ID do filme"),
-        "trivia": fields.String(description="Curiosidades sobre o filme"),
-        "wiki": fields.String(description="Link para Wikipedia"),
-        "writers": fields.List(fields.String, description="Lista de escritores"),
-    }
-)
+# movie_data_model = api.model(
+#     "MovieData",
+#     {
+#         "country": fields.String(description="País de origem"),
+#         "director": fields.String(description="Diretor do filme"),
+#         "genres": fields.List(fields.String, description="Gêneros do filme"),
+#         "originalTitle": fields.String(description="Título original do filme"),
+#         "plot_keywords": fields.List(fields.String, description="Palavras-chave do enredo"),
+#         "quote": fields.String(description="Citação do filme"),
+#         "soundtrack": fields.String(description="Link para trilha sonora"),
+#         "startYear": fields.Float(description="Ano de lançamento"),
+#         "stars": fields.List(fields.String, description="Elenco principal"),
+#         "tconst": fields.String(description="ID do filme"),
+#         "trivia": fields.String(description="Curiosidades sobre o filme"),
+#         "wiki": fields.String(description="Link para Wikipedia"),
+#         "writers": fields.List(fields.String, description="Lista de escritores"),
+#     }
+# )
 
 # Modelos para o Swagger
 blog_post_model = api.model(
@@ -47,11 +47,11 @@ blog_post_model = api.model(
             "cultural_importance": fields.String(description="Importância cultural"),
             "technical_analysis": fields.String(description="Análise técnica"),
             "conclusion": fields.String(description="Conclusão"),
-            "movieData": fields.Nested(api.model("MovieDataSimplified", {
-                "country": fields.String(description="País de origem"),
-                "plot_keywords": fields.List(fields.String, description="Palavras-chave do enredo"),
-                "quote": fields.String(description="Citação do filme")
-            }))
+            # "movieData": fields.Nested(api.model("MovieDataSimplified", {
+            #     "country": fields.String(description="País de origem"),
+            #     "plot_keywords": fields.List(fields.String, description="Palavras-chave do enredo"),
+            #     "quote": fields.String(description="Citação do filme")
+            # }))
         }))
     }
 )
@@ -79,7 +79,7 @@ class MovieBlogPost(Resource):
     @api.response(200, "Sucesso")
     @api.response(404, "Postagem não encontrada")
     @api.response(500, "Erro interno do servidor")
-    @api.marshal_with(blog_list_response)
+    @api.marshal_with(blog_post_model)
     def get(self, tconst):
         """Recupera a postagem do blog para um filme específico"""
         return get_blog_post(tconst)
