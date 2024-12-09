@@ -117,6 +117,44 @@ def get_writers(tconst):
     return ["Error retrieving writers"]
 
 
+def get_movie_principal_stars(tconst):
+    soup = fetch_soup(tconst)
+    if soup:
+        try:
+            print("Soup fetched successfully.")
+            
+            # Encontrar todas as seções de créditos principais
+            credit_sections = soup.find_all("li", {"data-testid": "title-pc-principal-credit"})
+            print(f"Found {len(credit_sections)} credit sections")
+            
+            # Procurar pela seção específica de Stars (geralmente é a terceira seção)
+            if len(credit_sections) >= 3:
+                stars_section = credit_sections[2]  # índice 2 é o terceiro elemento
+                print("Stars section found.")
+                
+                # Encontrar todos os links dos atores dentro da ul específica
+                star_links = stars_section.select("ul.ipc-inline-list a.ipc-metadata-list-item__list-content-item--link")
+                if star_links:
+                    print(f"Found {len(star_links)} star links.")
+                    # Extrair os nomes das estrelas
+                    stars = [link.get_text(strip=True) for link in star_links]
+                    print(f"Stars extracted: {stars}")
+                    return stars if stars else ["Stars not available"]
+                else:
+                    print("No star links found in the section")
+            else:
+                print(f"Not enough credit sections found (expected 3, got {len(credit_sections)})")
+                
+        except Exception as e:
+            print(f"Error extracting stars: {e}")
+            print(f"Error type: {type(e)}")
+            import traceback
+            print(traceback.format_exc())
+    else:
+        print("Failed to fetch soup.")
+    return ["Stars not available"]
+
+
 def get_movie_genres(tconst):
     soup = fetch_soup(tconst)
     if soup:
@@ -128,13 +166,4 @@ def get_movie_genres(tconst):
     return ["Error retrieving genres"]
 
 
-def get_movie_stars(tconst):
-    soup = fetch_soup(tconst)
-    if soup:
-        stars_section = soup.find("li", {"class": "ipc-metadata-list-item--link", "data-testid": "title-pc-principal-credit"})
-        if stars_section:
-            stars_links = stars_section.find_all("a", {"class": "ipc-metadata-list-item__list-content-item--link"})
-            stars = [link.get_text(strip=True) for link in stars_links]
-            return stars if stars else ["Stars not available"]
-    return ["Error retrieving stars"]
 

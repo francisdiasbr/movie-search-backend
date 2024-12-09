@@ -15,7 +15,7 @@ from favorites.scrapper import (
     get_movie_plot_keywords,
     get_director,
     get_movie_genres,
-    get_movie_stars,
+    get_movie_principal_stars,
     get_writers,
 )
 from movies.controller import get_movie
@@ -109,7 +109,7 @@ def favorite_movie(tconst):
                 executor.submit(get_movie_plot_keywords, tconst): "plot_keywords",
                 executor.submit(get_movie_quote, tconst): "quote",
                 executor.submit(get_album_by_movie_title, movie_title): "soundtrack",
-                executor.submit(get_movie_stars, tconst): "stars",
+                executor.submit(get_movie_principal_stars, tconst): "stars",
                 executor.submit(get_movie_trivia, tconst): "trivia",
                 executor.submit(get_wikipedia_url, movie_title): "wiki",
                 executor.submit(get_writers, tconst): "writers",
