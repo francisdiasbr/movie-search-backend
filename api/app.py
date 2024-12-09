@@ -10,6 +10,7 @@ from suggestion.routes import suggestion_bp
 from write_review.routes import write_review_bp
 from keywords.routes import keywords_bp
 from directors.routes import directors_bp
+from generate_blogpost.routes import generate_blogpost_bp
 
 # cria uma instância do Flask
 app = Flask(__name__)
@@ -44,6 +45,8 @@ app.register_blueprint(suggestion_bp)
 app.register_blueprint(write_review_bp)
 app.register_blueprint(keywords_bp)
 app.register_blueprint(directors_bp)
+app.register_blueprint(generate_blogpost_bp)
+
 
 # Adiciona os namespaces
 api.add_namespace(movies_bp.api)
@@ -52,6 +55,9 @@ api.add_namespace(generate_review_bp.api)
 api.add_namespace(write_review_bp.api)
 api.add_namespace(keywords_bp.api)
 api.add_namespace(directors_bp.api)
+api.add_namespace(generate_blogpost_bp.api)
+
+
 # função principal para iniciar o servidor
 if __name__ == "__main__":
     app.run(debug=config.FLASK_DEBUG, host="0.0.0.0", port=5001)
