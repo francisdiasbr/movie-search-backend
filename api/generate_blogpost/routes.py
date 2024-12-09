@@ -5,7 +5,7 @@ import os
 from generate_blogpost.controller import (
     create_and_save_blog_post,
     get_blog_post,
-    get_all_blog_posts
+    get_blogposts
 )
 
 generate_blogpost_bp = Blueprint("generate_blogpost", __name__)
@@ -101,15 +101,13 @@ class BlogPostSearch(Resource):
     @api.expect(blog_search_model)
     @api.response(200, "Sucesso")
     @api.response(400, "Dados de entrada inválidos")
-    @api.response(500, "Erro interno do servidor")
-    @api.marshal_with(blog_list_response)
     def post(self):
         """Pesquisa postagens de blog"""
         request_data = request.get_json()
         if not isinstance(request_data, dict):
             return {"status": 400, "message": "Dados de entrada inválidos"}, 400
             
-        return get_all_blog_posts(
+        return get_blogposts(
             filters=request_data.get("filters", {}),
             page=request_data.get("page", 1),
             page_size=request_data.get("page_size", 10)

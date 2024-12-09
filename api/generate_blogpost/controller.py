@@ -71,10 +71,14 @@ def get_blog_post(tconst):
         return {"data": "Failed to retrieve blog post"}, 500
 
 
-def get_all_blog_posts(filters={}, page=1, page_size=10):
+def get_blogposts(filters={}, page=1, page_size=10):
     """Recupera todas as postagens de blog com paginação"""
     try:
         blogposts_collection = get_mongo_collection(COLLECTION_NAME)
+
+        # Garante que os valores são inteiros
+        page = int(page)
+        page_size = int(page_size)
         
         total_documents = blogposts_collection.count_documents(filters)
         skip = (page - 1) * page_size
@@ -87,11 +91,12 @@ def get_all_blog_posts(filters={}, page=1, page_size=10):
         )
 
         return {
-            "data": {
-                "total_documents": total_documents,
-                "entries": posts
-            }
+            "total_documents": total_documents,
+            "entries": posts if posts else []
         }, 200
     except Exception as e:
         print(f"Erro: {e}")
-        return {"data": "Failed to retrieve blog posts"}, 500 
+        return {
+            "total_documents": 0,
+            "entries": []
+        }, 500 
