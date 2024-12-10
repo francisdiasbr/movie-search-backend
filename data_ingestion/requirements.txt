@@ -1,5 +1,0 @@
-pandas
-
-pymongo
-
-python-dotenv
