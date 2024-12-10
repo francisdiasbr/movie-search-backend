@@ -7,15 +7,24 @@ import time
 
 class BlogPost(BaseModel):
     """Esquema para uma postagem de blog"""
-    title: str = Field(description="Título criativo da postagem")
-    introduction: str = Field(description="Introdução cativante")
-    historical_context: str = Field(description="Análise do contexto histórico")
-    cultural_importance: str = Field(description="Discussão sobre a importância cultural do filme")
-    technical_analysis: str = Field(description="Análise dos elementos técnicos e artísticos")
-    conclusion: str = Field(description="Conclusão que convide à reflexão")
+    title: str = Field(description="Título criativo da postagem", min_length=10, max_length=100)
+    introduction: str = Field(description="Introdução cativante. Fale quem são as principais estrelas do filme", min_length=100)
+    stars_and_characters: str = Field(description="Principais estrelas e personagens do filme", min_length=300)
+    historical_context: str = Field(description="Análise do contexto histórico", min_length=100)
+    cultural_importance: str = Field(description="Discussão sobre a importância cultural do filme", min_length=100)
+    technical_analysis: str = Field(description="Análise dos elementos técnicos e artísticos", min_length=100)
+    conclusion: str = Field(description="Conclusão que convide à reflexão", min_length=100)
+    original_movie_soundtrack: str = Field(description="Trilha sonora original do filme. Cite as principais músicas", min_length=100)
+    # director_history: str = Field(description="História do diretor e relação do filme com ele", min_length=100)
+    # director_quotes: str = Field(description="Citações. Extraia do IMDb", min_length=100)
+    # curiosities: str = Field(description="Curiosidades sobre o filme", min_length=100)
+    # reception: str = Field(description="Recepção do filme", min_length=100)
+    # highlights: str = Field(description="Destaques do filme. Fale sobre os pontos fortes do filme e em como ele ficou conhecido", min_length=100)
+    # plot: str = Field(description="Enredo do filme", min_length=100)
+
 
 # Função para gerar uma postagem de blog
-def generate_blog_post(api_key, movie_data, model, temperature=0.7, max_tokens=1500):
+def generate_blog_post(api_key, movie_data, model, temperature=0.5, max_tokens=3000):
     start_time = time.perf_counter()  # Início da medição de tempo
     llm = ChatOpenAI(api_key=api_key, model=model, temperature=temperature, max_tokens=max_tokens)
 

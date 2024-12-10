@@ -2,6 +2,7 @@ from flask import request, jsonify
 import os
 from config import get_mongo_collection
 from .utils import generate_blog_post
+from favorites.scrapper import get_movie_poster
 import time
 
 COLLECTION_NAME = "blogposts"
@@ -25,22 +26,24 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
 
     blog_post = blog_post_response[0].get("data")
 
+    # Obtém a URL do pôster do filme
+    poster_url = get_movie_poster(tconst)
+
+    print(f"Poster URL: {poster_url}")
+
     # Nova estrutura de dados
     blog_data = {
         "tconst": tconst,
         "primaryTitle": movie.get("primaryTitle"),
         "title": blog_post.get("title"),
         "introduction": blog_post.get("introduction"),
+        "stars_and_characters": blog_post.get("stars_and_characters"),
         "historical_context": blog_post.get("historical_context"),
         "cultural_importance": blog_post.get("cultural_importance"),
         "technical_analysis": blog_post.get("technical_analysis"),
         "conclusion": blog_post.get("conclusion"),
-        # "movieData": {
-        #     "country": movie.get("country"),
-        #     "plot_keywords": movie.get("plot_keywords"),
-        #     "quote": movie.get("quote"),
-        #     # Adicione outros campos do movieData que desejar
-        # }
+        "original_movie_soundtrack": blog_post.get("original_movie_soundtrack"),
+        "poster_url": poster_url,
     }
 
     try:
@@ -62,7 +65,6 @@ def get_blog_post(tconst):
         blog_post = blogposts_collection.find_one({"tconst": tconst}, {"_id": 0})
         
         if blog_post:
-            # Mantém a mesma estrutura do POST
             return {"data": blog_post}, 200
         else:
             return {"data": "Blog post not found"}, 404

@@ -14,26 +14,6 @@ api = Namespace(
     description="Operações relacionadas à geração de postagens de blog sobre filmes"
 )
 
-# Modelo para os dados do filme
-# movie_data_model = api.model(
-#     "MovieData",
-#     {
-#         "country": fields.String(description="País de origem"),
-#         "director": fields.String(description="Diretor do filme"),
-#         "genres": fields.List(fields.String, description="Gêneros do filme"),
-#         "originalTitle": fields.String(description="Título original do filme"),
-#         "plot_keywords": fields.List(fields.String, description="Palavras-chave do enredo"),
-#         "quote": fields.String(description="Citação do filme"),
-#         "soundtrack": fields.String(description="Link para trilha sonora"),
-#         "startYear": fields.Float(description="Ano de lançamento"),
-#         "stars": fields.List(fields.String, description="Elenco principal"),
-#         "tconst": fields.String(description="ID do filme"),
-#         "trivia": fields.String(description="Curiosidades sobre o filme"),
-#         "wiki": fields.String(description="Link para Wikipedia"),
-#         "writers": fields.List(fields.String, description="Lista de escritores"),
-#     }
-# )
-
 # Modelos para o Swagger
 blog_post_model = api.model(
     "BlogPost",
@@ -43,15 +23,19 @@ blog_post_model = api.model(
             "primaryTitle": fields.String(description="Título do filme"),
             "title": fields.String(description="Título da postagem"),
             "introduction": fields.String(description="Introdução da postagem"),
+            "stars_and_characters": fields.String(description="Principais estrelas e personagens do filme"),
             "historical_context": fields.String(description="Contexto histórico"),
             "cultural_importance": fields.String(description="Importância cultural"),
             "technical_analysis": fields.String(description="Análise técnica"),
             "conclusion": fields.String(description="Conclusão"),
-            # "movieData": fields.Nested(api.model("MovieDataSimplified", {
-            #     "country": fields.String(description="País de origem"),
-            #     "plot_keywords": fields.List(fields.String, description="Palavras-chave do enredo"),
-            #     "quote": fields.String(description="Citação do filme")
-            # }))
+            "original_movie_soundtrack": fields.String(description="Trilha sonora original do filme"),
+            "poster_url": fields.String(description="URL do pôster do filme"),
+            # "director_history": fields.String(description="História do diretor e relação do filme com ele"),
+            # "director_quotes": fields.String(description="Citações famosas do diretor do filme"),
+            # "curiosities": fields.String(description="Curiosidades sobre o filme"),
+            # "reception": fields.String(description="Recepção do filme"),
+            # "highlights": fields.String(description="Destaques do filme. Fale sobre os pontos fortes do filme e em como ele ficou conhecido"),
+            # "plot": fields.String(description="Enredo do filme"),
         }))
     }
 )
