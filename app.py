@@ -13,7 +13,7 @@ from write_review.routes import write_review_bp
 
 # cria uma instância do Flask
 app = Flask(__name__)
-app.url_map.strict_slashes = False  # Permite URLs com ou sem barra no final
+app.url_map.strict_slashes = False
 
 # Configuração do CORS
 CORS(
@@ -27,6 +27,16 @@ CORS(
     },
 )
 
+# Rota raiz simples
+@app.route('/')
+def root():
+    return jsonify({
+        "status": "online",
+        "message": "Movie Search API is running",
+        "docs": "/docs",
+        "version": "1.0"
+    })
+
 # Configuração do Swagger
 api = Api(
     app,
@@ -34,27 +44,8 @@ api = Api(
     title="Movies API",
     description="API para gerenciamento de filmes",
     doc="/docs",
+    prefix="/api"  # Adiciona prefixo para todas as rotas da API
 )
-
-# Criar namespace para API principal
-api_main = Namespace(
-    'api', 
-    description='Endpoints principais da API'
-)
-
-@api_main.route('/')
-class Home(Resource):
-    def get(self):
-        """Retorna o status da API"""
-        return {
-            "status": "online",
-            "message": "Movie Search API is running",
-            "docs": "/docs",
-            "version": "1.0"
-        }
-
-# Adicionar o namespace principal
-api.add_namespace(api_main, path='/')
 
 # Rota para listar todas as rotas
 @app.route('/routes')
@@ -76,7 +67,6 @@ app.register_blueprint(keywords_bp)
 app.register_blueprint(movies_bp)
 app.register_blueprint(write_review_bp)
 
-
 # Adiciona os namespaces
 api.add_namespace(directors_bp.api)
 api.add_namespace(favorites_bp.api)
@@ -84,7 +74,6 @@ api.add_namespace(keywords_bp.api)
 api.add_namespace(generate_blogpost_bp.api)
 api.add_namespace(movies_bp.api)
 api.add_namespace(write_review_bp.api)
-
 
 # função principal para iniciar o servidor
 if __name__ == "__main__":
