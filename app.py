@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_restx import Api
@@ -35,7 +36,7 @@ api = Api(
     doc="/docs",
 )
 
-# Adicione esta rota raiz
+# Rota raiz - DEVE VIR ANTES dos blueprints
 @app.route('/')
 def home():
     return jsonify({
@@ -43,6 +44,18 @@ def home():
         "message": "Movie Search API is running",
         "docs": "/docs"  # Link para sua documentação Swagger
     })
+
+# Rota para listar todas as rotas
+@app.route('/routes')
+def list_routes():
+    routes = []
+    for rule in app.url_map.iter_rules():
+        routes.append({
+            "endpoint": rule.endpoint,
+            "methods": list(rule.methods),
+            "path": str(rule)
+        })
+    return jsonify(routes)
 
 # registra o blueprint das rotas
 app.register_blueprint(directors_bp)
