@@ -27,16 +27,6 @@ CORS(
     },
 )
 
-# Rota raiz simples
-@app.route('/')
-def root():
-    return jsonify({
-        "status": "online",
-        "message": "Movie Search API is running",
-        "docs": "/docs",
-        "version": "1.0"
-    })
-
 # Configuração do Swagger
 api = Api(
     app,
@@ -46,6 +36,16 @@ api = Api(
     doc="/docs",
     prefix="/api"  # Adiciona prefixo para todas as rotas da API
 )
+
+# Rota raiz simples
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "online",
+        "message": "Movie Search API is running",
+        "docs": "/docs",
+        "version": "1.0"
+    })
 
 # Rota para listar todas as rotas
 @app.route('/routes')
