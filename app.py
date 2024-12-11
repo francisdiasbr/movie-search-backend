@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify
 from flask_cors import CORS
-from flask_restx import Api
+from flask_restx import Api, Resource
 
 import config
 from favorites.routes import favorites_bp
@@ -38,7 +38,7 @@ api = Api(
 
 # Rota raiz - Agora usando o flask-restx
 @api.route('/')
-class Home(api.Resource):
+class Home(Resource):
     def get(self):
         """Retorna o status da API"""
         return {
