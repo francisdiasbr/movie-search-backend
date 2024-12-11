@@ -1,7 +1,7 @@
 import os
 from flask import Flask, jsonify
 from flask_cors import CORS
-from flask_restx import Api, Resource
+from flask_restx import Api, Resource, Namespace
 
 import config
 from favorites.routes import favorites_bp
@@ -36,12 +36,14 @@ api = Api(
     doc="/docs",
 )
 
-# Namespace para a rota raiz
-main = api.namespace('', description='Operações principais')
+# Criar namespace para API principal
+api_main = Namespace(
+    'api', 
+    description='Endpoints principais da API'
+)
 
-@main.route('/')
+@api_main.route('/')
 class Home(Resource):
-    @main.doc('get_home')
     def get(self):
         """Retorna o status da API"""
         return {
@@ -50,6 +52,9 @@ class Home(Resource):
             "docs": "/docs",
             "version": "1.0"
         }
+
+# Adicionar o namespace principal
+api.add_namespace(api_main, path='/')
 
 # Rota para listar todas as rotas
 @app.route('/routes')
