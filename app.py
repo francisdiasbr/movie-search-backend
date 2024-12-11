@@ -36,9 +36,12 @@ api = Api(
     doc="/docs",
 )
 
-# Rota raiz - Agora usando o flask-restx
-@api.route('/')
+# Namespace para a rota raiz
+main = api.namespace('', description='Operações principais')
+
+@main.route('/')
 class Home(Resource):
+    @main.doc('get_home')
     def get(self):
         """Retorna o status da API"""
         return {
