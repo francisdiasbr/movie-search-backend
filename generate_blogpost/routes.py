@@ -1,7 +1,8 @@
 from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
-import os
 
+
+from config import OPENAI_API_KEY
 from generate_blogpost.controller import (
     create_and_save_blog_post,
     get_blog_post,
@@ -30,12 +31,6 @@ blog_post_model = api.model(
             "conclusion": fields.String(description="Conclusão"),
             "original_movie_soundtrack": fields.String(description="Trilha sonora original do filme"),
             "poster_url": fields.String(description="URL do pôster do filme"),
-            # "director_history": fields.String(description="História do diretor e relação do filme com ele"),
-            # "director_quotes": fields.String(description="Citações famosas do diretor do filme"),
-            # "curiosities": fields.String(description="Curiosidades sobre o filme"),
-            # "reception": fields.String(description="Recepção do filme"),
-            # "highlights": fields.String(description="Destaques do filme. Fale sobre os pontos fortes do filme e em como ele ficou conhecido"),
-            # "plot": fields.String(description="Enredo do filme"),
         }))
     }
 )
@@ -75,9 +70,8 @@ class MovieBlogPost(Resource):
     @api.marshal_with(blog_post_model)
     def post(self, tconst):
         """Cria e salva uma postagem de blog para um filme favoritado"""
-        api_key = os.getenv("OPENAI_API_KEY")
         model = "gpt-4o"
-        return create_and_save_blog_post(tconst, api_key, model)
+        return create_and_save_blog_post(tconst, OPENAI_API_KEY, model)
 
 @api.route("/search")
 class BlogPostSearch(Resource):

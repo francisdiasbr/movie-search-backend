@@ -1,14 +1,15 @@
 from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
+from urllib.parse import unquote
+import time
+
 from directors.controller import (
     add_director,
     get_favorited_directors,
     delete_favorited_director,
     get_director_details,
 )
-from urllib.parse import unquote
-import os
-import time
+from config import OPENAI_API_KEY
 
 directors_bp = Blueprint("directors", __name__)
 api = Namespace(
@@ -52,7 +53,7 @@ class DirectorList(Resource):
                 print("Nome do diretor está vazio")
                 return {"data": "Director cannot be empty"}, 400
 
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = OPENAI_API_KEY
             model = "gpt-4o"
 
             # Chama a função para adicionar o diretor e obter a resposta
