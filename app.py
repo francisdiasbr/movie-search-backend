@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_restx import Api
 
@@ -34,6 +34,15 @@ api = Api(
     description="API para gerenciamento de filmes",
     doc="/docs",
 )
+
+# Adicione esta rota raiz
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "online",
+        "message": "Movie Search API is running",
+        "docs": "/docs"  # Link para sua documentação Swagger
+    })
 
 # registra o blueprint das rotas
 app.register_blueprint(directors_bp)

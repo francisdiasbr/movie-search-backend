@@ -23,8 +23,6 @@ RAPIDAPI_API_KEY = os.getenv("RAPIDAPI_API_KEY")
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 
-# Configurações do Flask
-FLASK_DEBUG = os.getenv("FLASK_DEBUG", "false").lower() == "true"
 
 # Conexão com o MongoDB
 client = MongoClient(os.getenv("MONGODB_CONNECTION_STRING"))
