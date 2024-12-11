@@ -36,14 +36,17 @@ api = Api(
     doc="/docs",
 )
 
-# Rota raiz - DEVE VIR ANTES dos blueprints
-@app.route('/')
-def home():
-    return jsonify({
-        "status": "online",
-        "message": "Movie Search API is running",
-        "docs": "/docs"  # Link para sua documentação Swagger
-    })
+# Rota raiz - Agora usando o flask-restx
+@api.route('/')
+class Home(api.Resource):
+    def get(self):
+        """Retorna o status da API"""
+        return {
+            "status": "online",
+            "message": "Movie Search API is running",
+            "docs": "/docs",
+            "version": "1.0"
+        }
 
 # Rota para listar todas as rotas
 @app.route('/routes')
