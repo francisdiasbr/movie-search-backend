@@ -5,9 +5,15 @@ from bson import ObjectId
 
 COLLECTION_NAME = "personal_opinions"
 
-def insert_personal_opinion(tconst, opinion, rate):
+def insert_personal_opinion(tconst, opinion=None, rate=None):
     """Insere uma nova opinião pessoal no banco de dados"""
     try:
+        # Define valores padrão
+        if opinion is None:
+            opinion = "Este filme é uma obra-prima da história do Cinema"
+        if rate is None:
+            rate = "10.0"
+        
         personal_opinion_data = {
             "tconst": tconst,
             "opinion": opinion,
