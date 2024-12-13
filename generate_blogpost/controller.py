@@ -4,6 +4,7 @@ from config import get_mongo_collection
 from .utils import generate_blog_post
 from favorites.scrapper import get_movie_poster
 import time
+from datetime import datetime
 
 COLLECTION_NAME = "blogposts"
 
@@ -31,6 +32,7 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
 
     print(f"Poster URL: {poster_url}")
 
+    creation_timestamp = datetime.now().isoformat()
     # Nova estrutura de dados
     blog_data = {
         "tconst": tconst,
@@ -44,6 +46,7 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
         "conclusion": blog_post.get("conclusion"),
         "original_movie_soundtrack": blog_post.get("original_movie_soundtrack"),
         "poster_url": poster_url,
+        "created_at": creation_timestamp
     }
 
     try:
