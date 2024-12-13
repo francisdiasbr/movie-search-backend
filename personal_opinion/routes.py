@@ -1,6 +1,6 @@
 from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
-from .controller import insert_personal_opinion, get_personal_opinions, delete_personal_opinion, get_all_personal_opinions, search_personal_opinions
+from .controller import insert_personal_opinion, get_personal_opinion, delete_personal_opinion, get_all_personal_opinions, search_personal_opinions
 
 personal_opinion_bp = Blueprint("personal_opinion", __name__)
 api = Namespace(
@@ -54,12 +54,13 @@ class AllPersonalOpinions(Resource):
 
 @api.route("/<string:tconst>")
 class PersonalOpinion(Resource):
-    @api.doc("get_personal_opinions")
+    @api.doc("get_personal_opinion")
     @api.response(200, "Sucesso")
+    @api.response(404, "Opinião não encontrada")
     @api.response(500, "Erro interno do servidor")
     def get(self, tconst):
-        """Recupera todas as opiniões pessoais para um filme específico"""
-        return get_personal_opinions(tconst)
+        """Recupera a primeira opinião pessoal para um filme específico"""
+        return get_personal_opinion(tconst)
 
     @api.doc("insert_personal_opinion")
     @api.expect(opinion_model)

@@ -28,19 +28,20 @@ def insert_personal_opinion(tconst, opinion=None, rate=None):
         print(f"Erro: {e}")
         return {"status": 500, "message": "Erro ao inserir opinião pessoal"}, 500
 
-def get_personal_opinions(tconst):
-    """Recupera todas as opiniões pessoais para um filme específico"""
+def get_personal_opinion(tconst):
+    """Recupera a primeira opinião pessoal para um filme específico"""
     try:
         personal_opinions_collection = get_mongo_collection(COLLECTION_NAME)
-        opinions = list(personal_opinions_collection.find({"tconst": tconst}))
+        opinion = personal_opinions_collection.find_one({"tconst": tconst})
         
-        for opinion in opinions:
+        if opinion:
             opinion["_id"] = str(opinion["_id"])
-        
-        return {"data": opinions}, 200
+            return {"data": opinion}, 200
+        else:
+            return {"status": 404, "message": "Opinião não encontrada"}, 404
     except Exception as e:
         print(f"Erro: {e}")
-        return {"status": 500, "message": "Erro ao recuperar opiniões pessoais"}, 500
+        return {"status": 500, "message": "Erro ao recuperar opinião pessoal"}, 500
 
 def get_all_personal_opinions():
     """Recupera todas as opiniões pessoais"""
