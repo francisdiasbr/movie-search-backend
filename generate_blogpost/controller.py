@@ -117,3 +117,25 @@ def get_blogposts(filters={}, page=1, page_size=10):
             "total_documents": 0,
             "entries": []
         }, 500 
+
+
+def update_blog_post(tconst, data):
+    """Atualiza uma postagem de blog existente"""
+    try:
+        blogposts_collection = get_mongo_collection(COLLECTION_NAME)
+        
+        # Verifica se a postagem existe
+        existing_post = blogposts_collection.find_one({"tconst": tconst})
+        if not existing_post:
+            return {"status": 404, "message": "Postagem não encontrada"}, 404
+        
+        # Atualiza apenas os campos fornecidos
+        update_data = {k: v for k, v in data.items() if v is not None}
+        
+        blogposts_collection.update_one({"tconst": tconst}, {"$set": update_data})
+        
+        updated_post = blogposts_collection.find_one({"tconst": tconst}, {"_id": 0})
+        return {"data": updated_post}, 200
+    except Exception as e:
+        print(f"Erro: {e}")
+        return {"status": 500, "message": "Erro interno do servidor"}, 500

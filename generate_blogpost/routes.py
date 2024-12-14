@@ -6,7 +6,8 @@ from config import OPENAI_API_KEY
 from generate_blogpost.controller import (
     create_and_save_blog_post,
     get_blog_post,
-    get_blogposts
+    get_blogposts,
+    update_blog_post
 )
 
 generate_blogpost_bp = Blueprint("generate_blogpost", __name__)
@@ -73,6 +74,15 @@ class MovieBlogPost(Resource):
         """Cria e salva uma postagem de blog para um filme favoritado"""
         model = "gpt-4o"
         return create_and_save_blog_post(tconst, OPENAI_API_KEY, model)
+
+    @api.doc("update_blog_post")
+    @api.response(200, "Postagem atualizada com sucesso")
+    @api.response(404, "Postagem não encontrada")
+    @api.response(500, "Erro interno do servidor")
+    def put(self, tconst):
+        """Atualiza uma postagem de blog existente"""
+        data = request.get_json()
+        return update_blog_post(tconst, data)
 
 @api.route("/search")
 class BlogPostSearch(Resource):
