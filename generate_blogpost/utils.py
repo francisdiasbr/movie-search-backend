@@ -17,6 +17,7 @@ class BlogPost(BaseModel):
     original_movie_soundtrack: str = Field(description="Trilha sonora original do filme. Cite as principais músicas")
     poster_url: str = Field(description="URL do pôster do filme")
     created_at: str = Field(description="Timestamp da criação da postagem")
+    soundtrack_video_url: str = Field(description="URL do vídeo da trilha sonora original do filme no YouTube. Busque pela combinação do nome do filme e do compositor. Busque apenas vídeos disponiveis")
     # director_history: str = Field(description="História do diretor e relação do filme com ele", min_length=100)
     # director_quotes: str = Field(description="Citações. Extraia do IMDb", min_length=100)
     # curiosities: str = Field(description="Curiosidades sobre o filme", min_length=100)
