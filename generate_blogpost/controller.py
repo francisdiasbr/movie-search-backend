@@ -5,6 +5,7 @@ from .utils import generate_blog_post
 from favorites.scrapper import get_movie_poster
 import time
 from datetime import datetime
+from .scraper import get_google_images  # Importa a função de scraping
 
 COLLECTION_NAME = "blogposts"
 
@@ -33,6 +34,12 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
     print(f"Poster URL: {poster_url}")
 
     creation_timestamp = datetime.now().isoformat()
+    # Concatena o título principal com "movie scenes"
+    query = f"{movie.get('primaryTitle')} movie scenes"
+
+    # Obtém as primeiras 5 imagens do Google Imagens usando a nova consulta
+    images = get_google_images(query, num_images=5)
+
     # Nova estrutura de dados
     blog_data = {
         "tconst": tconst,
@@ -48,7 +55,8 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
         "poster_url": poster_url,
         "created_at": creation_timestamp,
         "references": [],
-        "soundtrack_video_url": blog_post.get("soundtrack_video_url")
+        "soundtrack_video_url": blog_post.get("soundtrack_video_url"),
+        "images": images,  # Adiciona a lista de URLs das imagens
     }
 
     try:

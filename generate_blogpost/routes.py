@@ -34,7 +34,8 @@ blog_post_model = api.model(
             "poster_url": fields.String(description="URL do pôster do filme"),
             "created_at": fields.String(description="Timestamp da criação da postagem"),
             "references": fields.List(fields.String, description="Links relacionados com a postagem"),
-            "soundtrack_video_url": fields.String(description="URL do vídeo da trilha sonora no YouTube")
+            "soundtrack_video_url": fields.String(description="URL do vídeo da trilha sonora no YouTube"),
+            "images": fields.List(fields.String, description="URLs das imagens do filme")
         }))
     }
 )
