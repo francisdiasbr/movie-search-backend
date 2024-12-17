@@ -8,6 +8,13 @@ COLLECTION_NAME = "personal_opinions"
 def insert_personal_opinion(tconst, opinion=None, rate=None):
     """Insere uma nova opinião pessoal no banco de dados"""
     try:
+        personal_opinions_collection = get_mongo_collection(COLLECTION_NAME)
+        
+        # Verifica se já existe uma opinião para o tconst
+        existing_opinion = personal_opinions_collection.find_one({"tconst": tconst})
+        if existing_opinion:
+            return {"status": 400, "message": "Já existe uma opinião para este filme"}, 400
+        
         # Define valores padrão
         if opinion is None:
             opinion = "Este filme é uma obra-prima da história do Cinema"
@@ -20,7 +27,6 @@ def insert_personal_opinion(tconst, opinion=None, rate=None):
             "rate": rate,
             "created_at": datetime.now().isoformat()
         }
-        personal_opinions_collection = get_mongo_collection(COLLECTION_NAME)
         result = personal_opinions_collection.insert_one(personal_opinion_data)
         personal_opinion_data["_id"] = str(result.inserted_id)
         return {"data": personal_opinion_data}, 201
