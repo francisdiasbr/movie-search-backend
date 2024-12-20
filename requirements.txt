@@ -50,7 +50,7 @@ marshmallow==3.23.2
 multidict==6.1.0
 mypy-extensions==1.0.0
 nodeenv==1.9.1
-numpy==2.2.0
+numpy
 openai==1.58.1
 orjson==3.10.12
 packaging==24.2
