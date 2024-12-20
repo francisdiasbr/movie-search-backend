@@ -33,3 +33,10 @@ db = client[os.getenv("MONGODB_DATABASE")]
 def get_mongo_collection(name):
     collection = db[name]
     return collection
+
+# Verifica se as credenciais AWS estão carregadas
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+    raise Exception("Credenciais AWS não foram carregadas corretamente.")
+
