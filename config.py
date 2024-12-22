@@ -1,14 +1,28 @@
 import os
-
 from pymongo import MongoClient
 from dotenv import load_dotenv
 
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
 
+MONGODB_CONNECTION_STRING_ATLAS = os.getenv("MONGODB_CONNECTION_STRING_ATLAS")
+MONGODB_CONNECTION_STRING_LOCAL = os.getenv("MONGODB_CONNECTION_STRING_LOCAL")
 
-# String de conexão com o MongoDB
-MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING")
+# Conexão com o MongoDB
+atlas_client = MongoClient(MONGODB_CONNECTION_STRING_ATLAS)
+local_client = MongoClient(MONGODB_CONNECTION_STRING_LOCAL)
+
+atlas_db = atlas_client[os.getenv("MONGODB_DATABASE")]
+local_db = local_client[os.getenv("MONGODB_DATABASE")]
+
+# Função para obter uma coleção do MongoDB
+def get_mongo_collection(name, use_atlas=True):
+    if use_atlas:
+        collection = atlas_db[name]
+        return collection
+    else:
+        collection = local_db[name]
+        return collection
 
 # Configurações da OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -22,17 +36,6 @@ RAPIDAPI_API_KEY = os.getenv("RAPIDAPI_API_KEY")
 # Configurações do Spotify
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-
-
-# Conexão com o MongoDB
-client = MongoClient(os.getenv("MONGODB_CONNECTION_STRING"))
-db = client[os.getenv("MONGODB_DATABASE")]
-
-
-# Função para obter uma coleção do MongoDB
-def get_mongo_collection(name):
-    collection = db[name]
-    return collection
 
 # Verifica se as credenciais AWS estão carregadas
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")

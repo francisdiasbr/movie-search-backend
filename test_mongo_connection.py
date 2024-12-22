@@ -1,20 +1,23 @@
 from pymongo import MongoClient
+from config import MONGODB_CONNECTION_STRING_ATLAS, MONGODB_CONNECTION_STRING_LOCAL
 
-from config import MONGODB_CONNECTION_STRING
-
-def test_connection():
+def test_connection(connection_string, db_name, connection_type):
     try:
         # Cria uma instância do cliente MongoDB
-        client = MongoClient(MONGODB_CONNECTION_STRING)
+        client = MongoClient(connection_string)
         
         # Tenta acessar o banco de dados
-        db = client.movie_search  # Substitua 'test' pelo nome do seu banco de dados, se necessário
+        db = client[db_name]
         # Executa um comando simples para verificar a conexão
         db.command("ping")
         
-        print("Conexão com o MongoDB Atlas foi bem-sucedida!")
+        print(f"Conexão com o MongoDB {connection_type} foi bem-sucedida!")
     except Exception as e:
-        print(f"Erro ao conectar ao MongoDB Atlas: {e}")
+        print(f"Erro ao conectar ao MongoDB {connection_type}: {e}")
 
 if __name__ == "__main__":
-    test_connection()
+    # Testa a conexão com o MongoDB Atlas
+    test_connection(MONGODB_CONNECTION_STRING_ATLAS, "movie-search", "Atlas")
+    
+    # Testa a conexão com o MongoDB Local
+    test_connection(MONGODB_CONNECTION_STRING_LOCAL, "movie-search", "Local")

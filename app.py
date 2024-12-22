@@ -85,6 +85,4 @@ api.add_namespace(generate_blogpost_trivia_bp.api)
 
 # função principal para iniciar o servidor
 if __name__ == "__main__":
-    # Heroku fornece a porta via variável de ambiente PORT
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=False)

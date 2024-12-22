@@ -11,62 +11,86 @@ COLLECTION_NAME = "blogposts"
 
 def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_tokens=1500):
     """Cria e salva uma postagem de blog para um filme favoritado"""
-    start_time = time.perf_counter()
-
-    favoritelist_collection = get_mongo_collection("favoritelist")
+    print(f"Iniciando a criação do post para o filme: {tconst}")
     
-    movie = favoritelist_collection.find_one({"tconst": tconst})
-    if not movie:
-        return {"status": 404, "message": "Filme não encontrado nos favoritos"}, 404
-
-    # Chama a função para gerar a postagem de blog
-    blog_post_response = generate_blog_post(api_key, movie, model, temperature, max_tokens)
-
-    # Verifica se a geração da postagem foi bem-sucedida
-    if blog_post_response[1] != 200:
-        return {"status": 500, "message": "Erro ao gerar postagem do blog"}, 500
-
-    blog_post = blog_post_response[0].get("data")
-
-    # Obtém a URL do pôster do filme
-    poster_url = get_movie_poster(tconst)
-
-    print(f"Poster URL: {poster_url}")
-
-    creation_timestamp = datetime.now().isoformat()
-    # Concatena o título principal com "movie scenes"
-    query = f"{movie.get('primaryTitle')} movie scenes"
-
-    # Obtém as primeiras 5 imagens do Google Imagens usando a nova consulta
-    images = get_google_images(query, num_images=5)
-
-    # Nova estrutura de dados
-    blog_data = {
-        "tconst": tconst,
-        "primaryTitle": movie.get("primaryTitle"),
-        "title": blog_post.get("title"),
-        "introduction": blog_post.get("introduction"),
-        "stars_and_characters": blog_post.get("stars_and_characters"),
-        "historical_context": blog_post.get("historical_context"),
-        "cultural_importance": blog_post.get("cultural_importance"),
-        "technical_analysis": blog_post.get("technical_analysis"),
-        "conclusion": blog_post.get("conclusion"),
-        "original_movie_soundtrack": blog_post.get("original_movie_soundtrack"),
-        "poster_url": poster_url,
-        "created_at": creation_timestamp,
-        "references": [],
-        "soundtrack_video_url": blog_post.get("soundtrack_video_url"),
-        "images": images,  # Adiciona a lista de URLs das imagens
-    }
-
     try:
-        blogposts_collection = get_mongo_collection(COLLECTION_NAME)
-        blogposts_collection.insert_one(blog_data)
-        elapsed_time = time.perf_counter() - start_time
-        print(f"Tempo para criar e salvar postagem de blog: {elapsed_time:.6f} segundos")
-        return {"data": blog_data}, 200
+        favoritelist_collection = get_mongo_collection("favoritelist")
+        print(f"Conectado à coleção de favoritos: {favoritelist_collection}")
+
+        movie = favoritelist_collection.find_one({"tconst": tconst})
+        if not movie:
+            print("Filme não encontrado nos favoritos.")
+            return {"status": 404, "message": "Filme não encontrado nos favoritos"}, 404
+
+        print(f"Filme encontrado: {movie.get('primaryTitle')}")
+
+        blogposts_collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
+        blogposts_collection_local = get_mongo_collection(COLLECTION_NAME, use_atlas=False)
+        print("Conectado às coleções de blogposts (Atlas e Local)")
+
+        existing_post_atlas = blogposts_collection_atlas.find_one({"tconst": tconst})
+        existing_post_local = blogposts_collection_local.find_one({"tconst": tconst})
+        
+        if existing_post_atlas or existing_post_local:
+            print("Já existe uma resenha para este filme.")
+            return {"status": 400, "message": "Já existe uma resenha para este filme"}, 400
+
+        print("Nenhuma resenha existente encontrada. Gerando nova postagem de blog...")
+
+        # Inicia o cronômetro
+        start_time = time.perf_counter()
+
+        # Chama a função para gerar a postagem de blog
+        blog_post_response = generate_blog_post(api_key, movie, model, temperature, max_tokens)
+        print(f"Resposta da geração do blog post: {blog_post_response}")
+
+        if blog_post_response[1] != 200:
+            print("Erro ao gerar postagem do blog.")
+            return {"status": 500, "message": "Erro ao gerar postagem do blog"}, 500
+
+        blog_post = blog_post_response[0].get("data")
+        print("Postagem de blog gerada com sucesso.")
+
+        # Obtém a URL do pôster do filme
+        poster_url = get_movie_poster(tconst)
+        print(f"URL do pôster obtida: {poster_url}")
+
+        creation_timestamp = datetime.now().isoformat()
+        query = f"{movie.get('primaryTitle')} movie scenes"
+        images = get_google_images(query, num_images=5)
+
+        blog_data = {
+            "tconst": tconst,
+            "primaryTitle": movie.get("primaryTitle"),
+            "title": blog_post.get("title"),
+            "introduction": blog_post.get("introduction"),
+            "stars_and_characters": blog_post.get("stars_and_characters"),
+            "historical_context": blog_post.get("historical_context"),
+            "cultural_importance": blog_post.get("cultural_importance"),
+            "technical_analysis": blog_post.get("technical_analysis"),
+            "conclusion": blog_post.get("conclusion"),
+            "original_movie_soundtrack": blog_post.get("original_movie_soundtrack"),
+            "poster_url": poster_url,
+            "created_at": creation_timestamp,
+            "references": [],
+            "soundtrack_video_url": blog_post.get("soundtrack_video_url"),
+            "images": images,
+        }
+
+        try:
+            blog_data.pop('_id', None)
+            blogposts_collection_atlas.insert_one(blog_data)
+            blogposts_collection_local.insert_one(blog_data)
+            
+            elapsed_time = time.perf_counter() - start_time
+            print(f"Tempo para criar e salvar postagem de blog: {elapsed_time:.6f} segundos")
+            return {"data": blog_data}, 200
+        except Exception as e:
+            print(f"Erro ao inserir no banco de dados: {e}")
+            return {"status": 500, "message": "Erro ao salvar postagem no banco de dados"}, 500
+
     except Exception as e:
-        print(f"Erro: {e}")
+        print(f"Erro inesperado: {e}")
         return {"status": 500, "message": "Erro interno do servidor"}, 500
 
 
@@ -75,7 +99,7 @@ def get_blog_post(tconst):
     try:
         blogposts_collection = get_mongo_collection(COLLECTION_NAME)
         
-        blog_post = blogposts_collection.find_one({"tconst": tconst}, {"_id": 0})
+        blog_post = blogposts_collection.find_one({"tconst": tconst})
         
         if blog_post:
             return {"data": blog_post}, 200
