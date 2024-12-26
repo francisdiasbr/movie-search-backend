@@ -17,25 +17,32 @@ api = Namespace(
 )
 
 # Modelos para o Swagger
+blog_content_model = api.model("BlogContent", {
+    "title": fields.String(description="Título da postagem"),
+    "introduction": fields.String(description="Introdução da postagem"),
+    "stars_and_characters": fields.String(description="Principais estrelas e personagens"),
+    "historical_context": fields.String(description="Contexto histórico"),
+    "cultural_importance": fields.String(description="Importância cultural"),
+    "technical_analysis": fields.String(description="Análise técnica"),
+    "conclusion": fields.String(description="Conclusão")
+})
+
 blog_post_model = api.model(
     "BlogPost",
     {
         "data": fields.Nested(api.model("BlogPostData", {
             "tconst": fields.String(description="ID do filme"),
             "primaryTitle": fields.String(description="Título do filme"),
-            "title": fields.String(description="Título da postagem"),
-            "introduction": fields.String(description="Introdução da postagem"),
-            "stars_and_characters": fields.String(description="Principais estrelas e personagens do filme"),
-            "historical_context": fields.String(description="Contexto histórico"),
-            "cultural_importance": fields.String(description="Importância cultural"),
-            "technical_analysis": fields.String(description="Análise técnica"),
-            "conclusion": fields.String(description="Conclusão"),
-            "original_movie_soundtrack": fields.String(description="Trilha sonora original do filme"),
-            "poster_url": fields.String(description="URL do pôster do filme"),
-            "created_at": fields.String(description="Timestamp da criação da postagem"),
-            "references": fields.List(fields.String, description="Links relacionados com a postagem"),
-            "soundtrack_video_url": fields.String(description="URL do vídeo da trilha sonora no YouTube"),
-            "images": fields.List(fields.String, description="URLs das imagens do filme")
+            "content": fields.Nested(api.model("BlogPostContent", {
+                "en": fields.Nested(blog_content_model),
+                "pt": fields.Nested(blog_content_model)
+            })),
+            "original_movie_soundtrack": fields.String(description="Trilha sonora original"),
+            "poster_url": fields.String(description="URL do pôster"),
+            "created_at": fields.String(description="Timestamp da criação"),
+            "references": fields.List(fields.String),
+            "soundtrack_video_url": fields.String(description="URL do vídeo da trilha sonora"),
+            "images": fields.List(fields.String)
         }))
     }
 )

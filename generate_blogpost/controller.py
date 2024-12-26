@@ -5,7 +5,7 @@ from .utils import generate_blog_post
 from favorites.scrapper import get_movie_poster
 import time
 from datetime import datetime
-from .scraper import get_google_images  # Importa a função de scraping
+from .scraper import get_google_images
 
 COLLECTION_NAME = "blogposts"
 
@@ -49,8 +49,7 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
             return {"status": 500, "message": "Erro ao gerar postagem do blog"}, 500
 
         blog_post = blog_post_response[0].get("data")
-        print("Postagem de blog gerada com sucesso.")
-
+        
         # Obtém a URL do pôster do filme
         poster_url = get_movie_poster(tconst)
         print(f"URL do pôster obtida: {poster_url}")
@@ -62,13 +61,7 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
         blog_data = {
             "tconst": tconst,
             "primaryTitle": movie.get("primaryTitle"),
-            "title": blog_post.get("title"),
-            "introduction": blog_post.get("introduction"),
-            "stars_and_characters": blog_post.get("stars_and_characters"),
-            "historical_context": blog_post.get("historical_context"),
-            "cultural_importance": blog_post.get("cultural_importance"),
-            "technical_analysis": blog_post.get("technical_analysis"),
-            "conclusion": blog_post.get("conclusion"),
+            "content": blog_post["content"],  # Já contém as versões pt e en
             "original_movie_soundtrack": blog_post.get("original_movie_soundtrack"),
             "poster_url": poster_url,
             "created_at": creation_timestamp,
@@ -81,9 +74,6 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
             blog_data.pop('_id', None)
             blogposts_collection_atlas.insert_one(blog_data)
             blogposts_collection_local.insert_one(blog_data)
-            
-            elapsed_time = time.perf_counter() - start_time
-            print(f"Tempo para criar e salvar postagem de blog: {elapsed_time:.6f} segundos")
             return {"data": blog_data}, 200
         except Exception as e:
             print(f"Erro ao inserir no banco de dados: {e}")
@@ -102,6 +92,40 @@ def get_blog_post(tconst):
         blog_post = blogposts_collection.find_one({"tconst": tconst})
         
         if blog_post:
+            if "content" not in blog_post:
+                blog_post["content"] = {
+                    "pt": {
+                        "title": blog_post.get("title", ""),
+                        "introduction": blog_post.get("introduction", ""),
+                        "stars_and_characters": blog_post.get("stars_and_characters", ""),
+                        "historical_context": blog_post.get("historical_context", ""),
+                        "cultural_importance": blog_post.get("cultural_importance", ""),
+                        "technical_analysis": blog_post.get("technical_analysis", ""),
+                        "conclusion": blog_post.get("conclusion", "")
+                    },
+                    "en": {
+                        "title": blog_post.get("title_en", ""),
+                        "introduction": blog_post.get("introduction_en", ""),
+                        "stars_and_characters": blog_post.get("stars_and_characters_en", ""),
+                        "historical_context": blog_post.get("historical_context_en", ""),
+                        "cultural_importance": blog_post.get("cultural_importance_en", ""),
+                        "technical_analysis": blog_post.get("technical_analysis_en", ""),
+                        "conclusion": blog_post.get("conclusion_en", "")
+                    }
+                }
+                
+                # Remove campos antigos se existirem
+                fields_to_remove = [
+                    "title", "introduction", "stars_and_characters",
+                    "historical_context", "cultural_importance",
+                    "technical_analysis", "conclusion",
+                    "title_en", "introduction_en", "stars_and_characters_en",
+                    "historical_context_en", "cultural_importance_en",
+                    "technical_analysis_en", "conclusion_en"
+                ]
+                for field in fields_to_remove:
+                    blog_post.pop(field, None)
+            
             return {"data": blog_post}, 200
         else:
             return {"data": "Blog post not found"}, 404
@@ -115,19 +139,23 @@ def get_blogposts(filters={}, page=1, page_size=10):
     try:
         blogposts_collection = get_mongo_collection(COLLECTION_NAME)
 
-        # Garante que os valores são inteiros
         page = int(page)
         page_size = int(page_size)
         
-        # Converte filtros de texto para regex case-insensitive
         search_filters = {}
-        text_fields = ["tconst", "primaryTitle", "title", "introduction", 
-                      "historical_context", "cultural_importance", 
-                      "technical_analysis", "conclusion"]
+        text_fields = ["tconst", "primaryTitle"]
+        content_fields = ["title", "introduction", "stars_and_characters", 
+                         "historical_context", "cultural_importance", 
+                         "technical_analysis", "conclusion"]
         
         for key, value in filters.items():
             if key in text_fields and isinstance(value, str):
                 search_filters[key] = {"$regex": value, "$options": "i"}
+            elif key in content_fields and isinstance(value, str):
+                search_filters["$or"] = [
+                    {f"content.pt.{key}": {"$regex": value, "$options": "i"}},
+                    {f"content.en.{key}": {"$regex": value, "$options": "i"}}
+                ]
             else:
                 search_filters[key] = value
         
@@ -141,6 +169,29 @@ def get_blogposts(filters={}, page=1, page_size=10):
             .limit(page_size)
         )
 
+        for post in posts:
+            if "content" not in post:
+                post["content"] = {
+                    "pt": {
+                        "title": post.pop("title", ""),
+                        "introduction": post.pop("introduction", ""),
+                        "stars_and_characters": post.pop("stars_and_characters", ""),
+                        "historical_context": post.pop("historical_context", ""),
+                        "cultural_importance": post.pop("cultural_importance", ""),
+                        "technical_analysis": post.pop("technical_analysis", ""),
+                        "conclusion": post.pop("conclusion", "")
+                    },
+                    "en": {
+                        "title": post.pop("title_en", ""),
+                        "introduction": post.pop("introduction_en", ""),
+                        "stars_and_characters": post.pop("stars_and_characters_en", ""),
+                        "historical_context": post.pop("historical_context_en", ""),
+                        "cultural_importance": post.pop("cultural_importance_en", ""),
+                        "technical_analysis": post.pop("technical_analysis_en", ""),
+                        "conclusion": post.pop("conclusion_en", "")
+                    }
+                }
+
         return {
             "total_documents": total_documents,
             "entries": posts if posts else []
@@ -150,7 +201,7 @@ def get_blogposts(filters={}, page=1, page_size=10):
         return {
             "total_documents": 0,
             "entries": []
-        }, 500 
+        }, 500
 
 
 def update_blog_post(tconst, data):
