@@ -46,10 +46,15 @@ def create_and_save_blog_post_trivia(tconst, api_key, model, temperature=0.4, ma
     }
 
     try:
-        blogposts_collection = get_mongo_collection(COLLECTION_NAME)
-        blogposts_collection.insert_one(blog_data)
+        # Obtém ambas as coleções
+        blogposts_collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
+        blogposts_collection_local = get_mongo_collection(COLLECTION_NAME, use_atlas=False)
+        
+        # Insere em ambas
+        blogposts_collection_atlas.insert_one(blog_data)
+        blogposts_collection_local.insert_one(blog_data)
+        
         elapsed_time = time.perf_counter() - start_time
-        print(f"Tempo para criar e salvar postagem de blog: {elapsed_time:.6f} segundos")
         return {"data": blog_data}, 200
     except Exception as e:
         print(f"Erro: {e}")

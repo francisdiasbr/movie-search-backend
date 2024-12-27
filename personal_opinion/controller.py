@@ -15,10 +15,14 @@ COLLECTION_NAME = "personal_opinions"
 def insert_personal_opinion(tconst, opinion=None, rate=None):
     """Insere uma nova opinião pessoal no banco de dados"""
     try:
-        personal_opinions_collection = get_mongo_collection(COLLECTION_NAME)
+        collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
+        collection_local = get_mongo_collection(COLLECTION_NAME, use_atlas=False)
         
-        existing_opinion = personal_opinions_collection.find_one({"tconst": tconst})
-        if existing_opinion:
+        # Verifica em ambas as coleções
+        existing_opinion_atlas = collection_atlas.find_one({"tconst": tconst})
+        existing_opinion_local = collection_local.find_one({"tconst": tconst})
+        
+        if existing_opinion_atlas or existing_opinion_local:
             return {"status": 400, "message": "Já existe uma opinião para este filme"}, 400
         
         # Define valores padrão
@@ -33,8 +37,12 @@ def insert_personal_opinion(tconst, opinion=None, rate=None):
             "rate": rate,
             "created_at": datetime.now().isoformat()
         }
-        result = personal_opinions_collection.insert_one(personal_opinion_data)
-        personal_opinion_data["_id"] = str(result.inserted_id)
+        
+        # Insere em ambas as coleções
+        result_atlas = collection_atlas.insert_one(personal_opinion_data)
+        result_local = collection_local.insert_one(personal_opinion_data)
+        
+        personal_opinion_data["_id"] = str(result_atlas.inserted_id)
         return {"data": personal_opinion_data}, 201
     except Exception as e:
         print(f"Erro: {e}")

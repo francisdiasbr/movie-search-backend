@@ -9,13 +9,13 @@ import json
 class MovieReview(BaseModel):
     """Modelo para uma resenha de filme"""
     title: str = Field(
-        description="Título criativo da resenha",
+        description="Título criativo da resenha, sempre precedido pelo nome do filme no início, entre aspas e seguido por dois pontos. O nome do filme deve ser o primary title do filme. Em português, deve manter o nome do filme como primarytitle, sem tradução",
         min_length=10,
-        max_length=100,
+        max_length=110,
         examples=["'Matrix': Uma Revolução Digital que Transcende o Tempo"]
     )
     introduction: str = Field(
-        description="Parágrafo introdutório que apresenta o filme e desperta interesse",
+        description="Parágrafo introdutório que apresenta o filme e desperta interesse. Explique de que se trata o filme, mas não detalhe a trama",
         min_length=100,
         examples=["Em 1999, os irmãos Wachowski apresentaram ao mundo uma obra que revolucionaria não apenas o cinema de ficção científica, mas a própria forma de contar histórias..."]
     )
@@ -62,7 +62,7 @@ class BilingualReview(BaseModel):
     pt: MovieReview = Field(description="Versão em português da resenha")
     en: MovieReview = Field(description="Versão em inglês da resenha")
 
-def generate_blog_post(api_key, movie_data, model, temperature=0.5, max_tokens=3000):
+def generate_blog_post(api_key, movie_data, model, temperature=0.6, max_tokens=3000):
     start_time = time.perf_counter()
     llm = ChatOpenAI(api_key=api_key, model=model, temperature=temperature, max_tokens=max_tokens)
 

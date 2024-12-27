@@ -64,6 +64,20 @@ blog_list_response = api.model(
     }
 )
 
+# Modelo para atualização de blog post
+blog_post_update_model = api.model("BlogPostUpdate", {
+    "content": fields.Nested(api.model("BlogPostContentUpdate", {
+        "en": fields.Nested(blog_content_model),
+        "pt": fields.Nested(blog_content_model)
+    })),
+    "original_movie_soundtrack": fields.String(description="Trilha sonora original"),
+    "poster_url": fields.String(description="URL do pôster"),
+    "created_at": fields.String(description="Timestamp da criação"),
+    "references": fields.List(fields.String, description="Lista de referências"),
+    "soundtrack_video_url": fields.String(description="URL do vídeo da trilha sonora"),
+    "images": fields.List(fields.String, description="Lista de URLs de imagens")
+})
+
 @api.route("/<string:tconst>")
 class MovieBlogPost(Resource):
     @api.doc("get_blog_post")
@@ -86,6 +100,7 @@ class MovieBlogPost(Resource):
         return create_and_save_blog_post(tconst, OPENAI_API_KEY, model)
 
     @api.doc("update_blog_post")
+    @api.expect(blog_post_update_model)
     @api.response(200, "Postagem atualizada com sucesso")
     @api.response(404, "Postagem não encontrada")
     @api.response(500, "Erro interno do servidor")

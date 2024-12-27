@@ -73,14 +73,14 @@ def favorite_movie(tconst):
         print("Error: tconst is required")
         return {"data": "tconst is required"}, 400
 
-    collection = get_mongo_collection("favoritelist")
+    collection_atlas = get_mongo_collection("favoritelist", use_atlas=True)
+    collection_local = get_mongo_collection("favoritelist", use_atlas=False)
 
-    existing_movie = collection.find_one({"tconst": tconst})
-    print(
-        f"Checking if movie with tconst {tconst} already exists: {existing_movie is not None}"
-    )
-
-    if existing_movie:
+    # Verificar em ambas as coleções
+    existing_movie_atlas = collection_atlas.find_one({"tconst": tconst})
+    existing_movie_local = collection_local.find_one({"tconst": tconst})
+    
+    if existing_movie_atlas or existing_movie_local:
         return {"data": "Movie already listed"}, 409
 
     movie_info = get_movie(tconst)
@@ -136,8 +136,9 @@ def favorite_movie(tconst):
 
     # Insere as informações na coleção favoritelist
     try:
-        result = collection.insert_one(movie_data)
-        inserted_movie = collection.find_one({"_id": result.inserted_id})
+        result_atlas = collection_atlas.insert_one(movie_data)
+        result_local = collection_local.insert_one(movie_data)
+        inserted_movie = collection_atlas.find_one({"_id": result_atlas.inserted_id})
         if inserted_movie:
             inserted_movie["_id"] = str(inserted_movie["_id"])
             return {"data": inserted_movie}, 201

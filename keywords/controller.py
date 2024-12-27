@@ -9,17 +9,22 @@ def add_keyword(keyword):
     if not keyword:
         return {"data": "Keyword is required"}, 400
 
-    collection = get_mongo_collection(COLLECTION_NAME)
+    collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
+    collection_local = get_mongo_collection(COLLECTION_NAME, use_atlas=False)
 
     # Verifica se a palavra-chave já está na lista de favoritos
-    existing_keyword = collection.find_one({"keyword": keyword})
-    if existing_keyword:
+    existing_keyword_atlas = collection_atlas.find_one({"keyword": keyword})
+    existing_keyword_local = collection_local.find_one({"keyword": keyword})
+    
+    if existing_keyword_atlas or existing_keyword_local:
         return {"data": "Keyword already listed"}, 409
 
-    # Insere a nova palavra-chave
     try:
-        result = collection.insert_one({"keyword": keyword})
-        inserted_keyword = collection.find_one({"_id": result.inserted_id})
+        # Insere em ambas as coleções
+        result_atlas = collection_atlas.insert_one({"keyword": keyword})
+        result_local = collection_local.insert_one({"keyword": keyword})
+        
+        inserted_keyword = collection_atlas.find_one({"_id": result_atlas.inserted_id})
         if inserted_keyword:
             return {
                 "data": {
