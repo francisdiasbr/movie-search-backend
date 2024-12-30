@@ -1,6 +1,6 @@
 from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
-from .controller import insert_personal_opinion, get_personal_opinion, delete_personal_opinion, get_all_personal_opinions, search_personal_opinions, upload_image_to_s3, get_image_url, get_public_image_url, get_all_image_urls, delete_image_from_s3
+from .controller import insert_personal_opinion, get_personal_opinion, delete_personal_opinion, get_all_personal_opinions, search_personal_opinions
 
 personal_opinion_bp = Blueprint("personal_opinion", __name__)
 api = Namespace(
@@ -84,68 +84,5 @@ class PersonalOpinionDelete(Resource):
         """Deleta uma opinião pessoal específica"""
         return delete_personal_opinion(tconst, opinion_id)
 
-@api.route("/upload-image/<string:tconst>")
-class UploadImage(Resource):
-    @api.doc("upload_image")
-    @api.response(200, "Upload realizado com sucesso")
-    @api.response(400, "Arquivo não encontrado")
-    @api.response(500, "Erro interno do servidor")
-    def post(self, tconst):
-        """Faz upload de uma imagem para o S3 associada a um filme específico"""
-        if 'file' not in request.files:
-            return {"status": 400, "message": "Arquivo não encontrado"}, 400
-        
-        file = request.files['file']
-        BUCKET_NAME = 'themoviesearch'  # Nome do bucket S3
-        object_name = f"{tconst}/{file.filename}"  # Nome do objeto no S3, associando ao tconst
-        return upload_image_to_s3(file, BUCKET_NAME, object_name)
-
-
-@api.route("/get-image-url/<string:tconst>/<string:filename>")
-class GetImageUrl(Resource):
-    @api.doc("get_image_url")
-    @api.response(200, "URL gerada com sucesso")
-    @api.response(404, "Imagem não encontrada")
-    @api.response(500, "Erro interno do servidor")
-    def get(self, tconst, filename):
-        """Gera uma URL pré-assinada para acessar a imagem no S3"""
-        BUCKET_NAME = 'themoviesearch'  # Nome do bucket S3
-        return get_image_url(BUCKET_NAME, tconst, filename)
-
-
-@api.route("/get-public-image-url/<string:tconst>/<string:filename>")
-class GetPublicImageUrl(Resource):
-    @api.doc("get_public_image_url")
-    @api.response(200, "URL gerada com sucesso")
-    @api.response(404, "Imagem não encontrada")
-    @api.response(500, "Erro interno do servidor")
-    def get(self, tconst, filename):
-        """Gera uma URL pública direta para acessar a imagem no S3"""
-        BUCKET_NAME = 'themoviesearch'  # Nome do bucket S3
-        return get_public_image_url(BUCKET_NAME, tconst, filename)
-
-
-@api.route("/get-all-image-urls/<string:tconst>")
-class GetAllImageUrls(Resource):
-    @api.doc("get_all_image_urls")
-    @api.response(200, "URLs geradas com sucesso")
-    @api.response(404, "Imagens não encontradas")
-    @api.response(500, "Erro interno do servidor")
-    def get(self, tconst):
-        """Gera todas as URLs públicas diretas para imagens associadas a um tconst"""
-        BUCKET_NAME = 'themoviesearch'  # Nome do bucket S3
-        return get_all_image_urls(BUCKET_NAME, tconst)
-
-
-@api.route("/delete-image/<string:tconst>/<string:filename>")
-class DeleteImage(Resource):
-    @api.doc("delete_image")
-    @api.response(200, "Imagem deletada com sucesso")
-    @api.response(404, "Imagem não encontrada")
-    @api.response(500, "Erro interno do servidor")
-    def delete(self, tconst, filename):
-        """Deleta uma imagem específica de um bucket S3"""
-        BUCKET_NAME = 'themoviesearch'  # Nome do bucket S3
-        return delete_image_from_s3(BUCKET_NAME, tconst, filename)
 
 personal_opinion_bp.api = api

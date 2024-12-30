@@ -12,6 +12,7 @@ from movies.routes import movies_bp
 from write_review.routes import write_review_bp
 from personal_opinion.routes import personal_opinion_bp
 from generate_blogpost_trivia.routes import generate_blogpost_trivia_bp
+from images.routes import images_bp
 
 # cria uma instância do Flask
 app = Flask(__name__)
@@ -70,7 +71,7 @@ app.register_blueprint(movies_bp)
 app.register_blueprint(write_review_bp)
 app.register_blueprint(personal_opinion_bp)
 app.register_blueprint(generate_blogpost_trivia_bp)
-
+app.register_blueprint(images_bp)
 
 # Adiciona os namespaces
 api.add_namespace(directors_bp.api)
@@ -81,7 +82,7 @@ api.add_namespace(movies_bp.api)
 api.add_namespace(write_review_bp.api)
 api.add_namespace(personal_opinion_bp.api)
 api.add_namespace(generate_blogpost_trivia_bp.api)
-
+api.add_namespace(images_bp.api)
 
 # função principal para iniciar o servidor
 if __name__ == "__main__":
