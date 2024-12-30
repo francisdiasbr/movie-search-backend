@@ -13,7 +13,8 @@ opinion_model = api.model(
     "PersonalOpinion",
     {
         "opinion": fields.String(description="Opinião pessoal", required=True),
-        "rate": fields.String(description="Avaliação", required=True)
+        "rate": fields.String(description="Avaliação", required=True),
+        "enjoying": fields.String(description="Está gostando do filme?", required=True)
     }
 )
 
@@ -70,9 +71,9 @@ class PersonalOpinion(Resource):
     def post(self, tconst):
         """Insere uma nova opinião pessoal para um filme específico"""
         data = request.get_json()
-        if not data or "opinion" not in data or "rate" not in data:
+        if not data or "opinion" not in data or "rate" not in data or "enjoying" not in data:
             return {"status": 400, "message": "Dados de entrada inválidos"}, 400
-        return insert_personal_opinion(tconst, data["opinion"], data["rate"])
+        return insert_personal_opinion(tconst, data["opinion"], data["rate"], data["enjoying"])
 
 @api.route("/<string:tconst>/<string:opinion_id>")
 class PersonalOpinionDelete(Resource):

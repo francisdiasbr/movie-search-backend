@@ -12,7 +12,7 @@ from config import get_mongo_collection, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KE
 COLLECTION_NAME = "personal_opinions"
 
 
-def insert_personal_opinion(tconst, opinion=None, rate=None):
+def insert_personal_opinion(tconst, opinion=None, rate=None, enjoying=None):
     """Insere uma nova opinião pessoal no banco de dados"""
     try:
         collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
@@ -30,11 +30,14 @@ def insert_personal_opinion(tconst, opinion=None, rate=None):
             opinion = "Este filme é uma obra-prima da história do Cinema"
         if rate is None:
             rate = "10.0"
+        if enjoying is None:
+            enjoying = "sim"
         
         personal_opinion_data = {
             "tconst": tconst,
             "opinion": opinion,
             "rate": rate,
+            "enjoying": enjoying,
             "created_at": datetime.now().isoformat()
         }
         
