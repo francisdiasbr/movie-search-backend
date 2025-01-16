@@ -14,33 +14,41 @@ from personal_opinion.routes import personal_opinion_bp
 from generate_blogpost_trivia.routes import generate_blogpost_trivia_bp
 from images.routes import images_bp
 
-# cria uma instância do Flask
+# Flask instance
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 
-# Configuração do CORS
+# CORS config
 CORS(
     app,
     resources={
         r"/*": {
             "origins": "*",
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
             "allow_headers": ["Content-Type", "Authorization"],
         }
     },
 )
 
-# Configuração do Swagger
+# Swagger config
 api = Api(
     app,
     version="1.0",
     title="Movies API",
     description="API para gerenciamento de filmes",
     doc="/docs",
-    prefix="/api"  # Adiciona prefixo para todas as rotas da API
+    prefix="/api",
+    default_mediatype="application/json",
+    default="Movies API",
+    default_label="Endpoints disponíveis",
+    validate=True,
+    ordered=True,
+    catch_all_404s=True,
+    serve_challenge_on_401=True,
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"]
 )
 
-# Rota raiz simples
+# Root route
 @app.route('/')
 def home():
     return jsonify({
@@ -50,7 +58,7 @@ def home():
         "version": "1.0"
     })
 
-# Rota para listar todas as rotas
+# Route to list all routes
 @app.route('/routes')
 def list_routes():
     routes = []
@@ -62,7 +70,7 @@ def list_routes():
         })
     return jsonify(routes)
 
-# registra o blueprint das rotas
+# register blueprints
 app.register_blueprint(directors_bp)
 app.register_blueprint(favorites_bp)
 app.register_blueprint(generate_blogpost_bp)
@@ -73,7 +81,7 @@ app.register_blueprint(personal_opinion_bp)
 app.register_blueprint(generate_blogpost_trivia_bp)
 app.register_blueprint(images_bp)
 
-# Adiciona os namespaces
+# Add namespaces
 api.add_namespace(directors_bp.api)
 api.add_namespace(favorites_bp.api)
 api.add_namespace(keywords_bp.api)
@@ -84,6 +92,6 @@ api.add_namespace(personal_opinion_bp.api)
 api.add_namespace(generate_blogpost_trivia_bp.api)
 api.add_namespace(images_bp.api)
 
-# função principal para iniciar o servidor
+# main function to start the server
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5001, debug=False)

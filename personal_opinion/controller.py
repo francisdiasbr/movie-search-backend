@@ -12,13 +12,12 @@ from config import get_mongo_collection, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KE
 COLLECTION_NAME = "personal_opinions"
 
 
-def insert_personal_opinion(tconst, opinion=None, rate=None, enjoying=None):
+def insert_personal_opinion(tconst, opinion=None, enjoying_1=None, enjoying_2=None):
     """Insere uma nova opinião pessoal no banco de dados"""
     try:
         collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
         collection_local = get_mongo_collection(COLLECTION_NAME, use_atlas=False)
         
-        # Verifica em ambas as coleções
         existing_opinion_atlas = collection_atlas.find_one({"tconst": tconst})
         existing_opinion_local = collection_local.find_one({"tconst": tconst})
         
@@ -28,16 +27,16 @@ def insert_personal_opinion(tconst, opinion=None, rate=None, enjoying=None):
         # Define valores padrão
         if opinion is None:
             opinion = "Este filme é uma obra-prima da história do Cinema"
-        if rate is None:
-            rate = "10.0"
-        if enjoying is None:
-            enjoying = "sim"
+        if enjoying_1 is None:
+            enjoying_1 = "sim"
+        if enjoying_2 is None:
+            enjoying_2 = "sim"
         
         personal_opinion_data = {
             "tconst": tconst,
             "opinion": opinion,
-            "rate": rate,
-            "enjoying": enjoying,
+            "enjoying_1": enjoying_1,
+            "enjoying_2": enjoying_2,
             "created_at": datetime.now().isoformat()
         }
         
@@ -104,7 +103,7 @@ def search_personal_opinions(filters, page=1, page_size=10):
         personal_opinions_collection = get_mongo_collection(COLLECTION_NAME)
         
         search_filters = {}
-        text_fields = ["tconst", "opinion", "rate"]
+        text_fields = ["tconst", "opinion", "enjoying_1", "enjoying_2"]
         
         for key, value in filters.items():
             if key in text_fields and isinstance(value, str):
@@ -132,3 +131,48 @@ def search_personal_opinions(filters, page=1, page_size=10):
     except Exception as e:
         print(f"Erro: {e}")
         return {"status": 500, "message": "Erro ao pesquisar opiniões pessoais"}, 500
+
+
+def update_personal_opinion(tconst, opinion=None, enjoying_1=None, enjoying_2=None):
+    """Atualiza uma opinião pessoal existente"""
+    try:
+        collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
+        collection_local = get_mongo_collection(COLLECTION_NAME, use_atlas=False)
+        
+        # Verifica se a opinião existe
+        existing_opinion = collection_atlas.find_one({"tconst": tconst})
+        if not existing_opinion:
+            return {"status": 404, "message": "Não existe opinião cadastrada para este filme"}, 404
+        
+        # Prepara os dados para atualização
+        update_data = {}
+        if opinion is not None:
+            update_data["opinion"] = opinion
+        if enjoying_1 is not None:
+            update_data["enjoying_1"] = enjoying_1
+        if enjoying_2 is not None:
+            update_data["enjoying_2"] = enjoying_2
+        
+        if not update_data:
+            return {"status": 400, "message": "Nenhum dado fornecido para atualização"}, 400
+            
+        update_data["updated_at"] = datetime.now().isoformat()
+        
+        # Atualiza em ambas as coleções
+        collection_atlas.update_one(
+            {"tconst": tconst},
+            {"$set": update_data}
+        )
+        collection_local.update_one(
+            {"tconst": tconst},
+            {"$set": update_data}
+        )
+        
+        # Retorna a opinião atualizada
+        updated_opinion = collection_atlas.find_one({"tconst": tconst})
+        updated_opinion["_id"] = str(updated_opinion["_id"])
+        return {"data": updated_opinion, "message": "Opinião atualizada com sucesso"}, 200
+            
+    except Exception as e:
+        print(f"Erro: {e}")
+        return {"status": 500, "message": "Erro ao atualizar opinião pessoal"}, 500
