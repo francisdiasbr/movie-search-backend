@@ -17,44 +17,56 @@ api = Namespace(
 write_review_bp.api = api
 
 
+# Modelos para o Swagger
+review_content_model = api.model("ReviewContent", {
+    "text": fields.String(description="Texto da resenha")
+})
+
 review_input = api.model(
     "ReviewInput",
     {
-        "data": fields.Nested(
-            api.model(
-                "ReviewData",
-                {
-                    "author": fields.String(
-                        required=True, description="Autor da resenha"
-                    ),
-                    "reviewTitle": fields.String(
-                        required=True, description="Título da resenha"
-                    ),
-                    "review": fields.String(
-                        required=True, description="Conteúdo da resenha"
-                    ),
-                },
-            )
-        )
-    },
+        "data": fields.Nested(api.model("ReviewData", {
+            "content": fields.Nested(api.model("ReviewContent", {
+                "en": fields.Nested(review_content_model),
+                "pt": fields.Nested(review_content_model)
+            })),
+            "references": fields.List(fields.String, description="Lista de referências"),
+            "images": fields.List(fields.String, description="Lista de URLs de imagens")
+        }))
+    }
+)
+
+# Novo modelo para atualização de review
+review_update_input = api.model(
+    "ReviewUpdateInput",
+    {
+        "data": fields.Nested(api.model("ReviewUpdateData", {
+            "content": fields.Nested(api.model("ReviewContentUpdate", {
+                "en": fields.Nested(review_content_model),
+                "pt": fields.Nested(review_content_model)
+            })),
+            "references": fields.List(fields.String),
+            "images": fields.List(fields.String)
+        }))
+    }
 )
 
 review_output = api.model(
     "ReviewOutput",
     {
-        "data": fields.Nested(
-            api.model(
-                "ReviewDocument",
-                {
-                    "_id": fields.String(description="ID da resenha"),
-                    "tconst": fields.String(description="ID do filme"),
-                    "reviewTitle": fields.String(description="Título da resenha"),
-                    "review": fields.String(description="Conteúdo da resenha"),
-                    "author": fields.String(description="Autor da resenha"),
-                },
-            )
-        )
-    },
+        "data": fields.Nested(api.model("ReviewDocument", {
+            "tconst": fields.String(description="ID do filme"),
+            "primaryTitle": fields.String(description="Título do filme"),
+            "content": fields.Nested(api.model("ReviewContentOutput", {
+                "en": fields.Nested(review_content_model),
+                "pt": fields.Nested(review_content_model)
+            })),
+            "created_at": fields.String(description="Data de criação"),
+            "isAiGenerated": fields.Boolean(description="Indica se a resenha foi gerada por IA"),
+            "references": fields.List(fields.String),
+            "images": fields.List(fields.String)
+        }))
+    }
 )
 
 search_input = api.model(
@@ -73,7 +85,7 @@ class MovieReview(Resource):
     @api.response(200, "Success", review_output)
     @api.response(404, "Review not found")
     def get(self, tconst):
-        """Obtém todas as resenhas de um filme específico"""
+        """Obtém a resenha de um filme específico"""
         return get_movie_review(tconst)
 
     @api.doc("create_review")
@@ -84,31 +96,21 @@ class MovieReview(Resource):
         """Cria uma nova resenha para um filme"""
         return create_and_save_movie_review(tconst)
 
-
-@api.route("/<string:tconst>/<string:review_id>")
-class MovieReviewDetail(Resource):
     @api.doc("update_review")
-    @api.expect(review_input)
+    @api.expect(review_update_input)
     @api.response(200, "Success")
     @api.response(404, "Review not found")
-    def put(self, tconst, review_id):
-        """Atualiza uma resenha específica"""
+    def put(self, tconst):
+        """Atualiza a resenha de um filme específico"""
         request_data = request.get_json().get("data", {})
-        return edit_movie_review(
-            tconst,
-            review_id,
-            request_data.get("reviewTitle"),
-            request_data.get("author"),
-            request_data.get("review"),
-        )
+        return edit_movie_review(tconst, request_data)
 
     @api.doc("delete_review")
     @api.response(200, "Review deleted")
     @api.response(404, "Review not found")
-    def delete(self, tconst, review_id):
-        """Remove uma resenha específica"""
-        order = request.args.get("order", default=5, type=int)
-        return delete_movie_review(tconst, review_id, order)
+    def delete(self, tconst):
+        """Remove a resenha de um filme específico"""
+        return delete_movie_review(tconst)
 
 
 @api.route("/search")
