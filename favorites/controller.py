@@ -21,52 +21,7 @@ from favorites.scrapper import (
 from movies.controller import get_movie
 from spotify.controller import get_album_by_movie_title
 from utils import sanitize_movie_data
-
-
-def get_magnet_link(tconst):
-    # Define a URL base
-    search_url = f"https://movie_torrent_api1.p.rapidapi.com/search/{tconst}"
-
-    # Define os headers necessários
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "x-rapidapi-ua": "RapidAPI-Playground",
-        "x-rapidapi-key": RAPIDAPI_API_KEY,
-        "x-rapidapi-host": "movie_torrent_api1.p.rapidapi.com",
-    }
-
-    # print(f"Making request to URL: {search_url}")
-    # print(f"Using headers: {headers}")
-
-    # Faz a requisição à API
-    response = requests.get(search_url, headers=headers, verify=False)
-
-    print(f"Response Status Code: {response.status_code}")
-    print(f"Response Content: {response.text}")
-
-    if response.status_code == 200:
-        try:
-            data = response.json()
-            # print(f"Response JSON: {data}")
-            if (
-                data["status"] == "success"
-                and data.get("data")
-                and len(data["data"]) > 0
-            ):
-                magnet_link = data["data"][0].get("magnet")
-                if magnet_link:
-                    return {"data": magnet_link}, 200
-            return {"data": "Magnet link not found"}, 404
-        except ValueError:
-            # print("Error decoding JSON.")
-            return {"data": "Invalid JSON response from API"}, 500
-    else:
-        # print(f"Error {response.status_code} - {response.text}")
-        return {
-            "data": f"Error {response.status_code} - {response.text}"
-        }, response.status_code
-
+from favorites.external_requests import get_magnet_link, get_subtitle_url
 
 def favorite_movie(tconst):
     if not tconst:
@@ -102,6 +57,7 @@ def favorite_movie(tconst):
         with ThreadPoolExecutor() as executor:
             futures = {
                 executor.submit(get_magnet_link, tconst): "magnet_link",
+                executor.submit(get_subtitle_url, tconst): "subtitle_url",
                 executor.submit(get_movie_country, tconst): "country",
                 executor.submit(get_director, tconst): "director",
                 executor.submit(get_movie_genres, tconst): "genres",
@@ -117,12 +73,12 @@ def favorite_movie(tconst):
 
             for future in as_completed(futures):
                 key = futures[future]
-                start_time = time.perf_counter()  # Usa perf_counter para maior precisão
+                start_time = time.perf_counter()
                 try:
                     result = future.result()
-                    elapsed_time = time.perf_counter() - start_time  # Calcula o tempo decorrido
-                    print(f"Tempo para {key}: {elapsed_time:.6f} segundos")  # Mostra mais casas decimais
-                    if key == "magnet_link":
+                    elapsed_time = time.perf_counter() - start_time
+                    print(f"Tempo para {key}: {elapsed_time:.6f} segundos")
+                    if key in ["magnet_link", "subtitle_url"]:
                         movie_data[key] = result[0]["data"] if result[1] == 200 else None
                     else:
                         movie_data[key] = result
