@@ -7,22 +7,39 @@ load_dotenv()
 
 MONGODB_CONNECTION_STRING_ATLAS = os.getenv("MONGODB_CONNECTION_STRING_ATLAS")
 MONGODB_CONNECTION_STRING_LOCAL = os.getenv("MONGODB_CONNECTION_STRING_LOCAL")
+MONGODB_DATABASE = os.getenv("MONGODB_DATABASE")
 
-# Conexão com o MongoDB
-atlas_client = MongoClient(MONGODB_CONNECTION_STRING_ATLAS)
-local_client = MongoClient(MONGODB_CONNECTION_STRING_LOCAL)
-
-atlas_db = atlas_client[os.getenv("MONGODB_DATABASE")]
-local_db = local_client[os.getenv("MONGODB_DATABASE")]
+def get_mongo_client(use_atlas=True):
+    try:
+        if use_atlas:
+            client = MongoClient(MONGODB_CONNECTION_STRING_ATLAS)
+            connection_type = "Atlas"
+        else:
+            client = MongoClient(MONGODB_CONNECTION_STRING_LOCAL)
+            connection_type = "Local"
+        
+        # Testa a conexão
+        client.server_info()
+        print(f"Conexão com MongoDB {connection_type} estabelecida com sucesso")
+        return client
+    except Exception as e:
+        print(f"Erro ao conectar ao MongoDB {connection_type}: {e}")
+        print(f"String de conexão usada: {'Atlas' if use_atlas else MONGODB_CONNECTION_STRING_LOCAL}")
+        return None
 
 # Função para obter uma coleção do MongoDB
 def get_mongo_collection(name, use_atlas=True):
-    if use_atlas:
-        collection = atlas_db[name]
-        return collection
-    else:
-        collection = local_db[name]
-        return collection
+    try:
+        client = get_mongo_client(use_atlas)
+        if client:
+            db = client[MONGODB_DATABASE]
+            return db[name]
+        else:
+            print(f"Não foi possível obter cliente MongoDB {'Atlas' if use_atlas else 'Local'}")
+            return None
+    except Exception as e:
+        print(f"Erro ao obter coleção {name}: {e}")
+        return None
 
 # Configurações da OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

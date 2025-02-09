@@ -151,15 +151,31 @@ def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None):
 
 # Remove um filme dos favoritos
 def delete_favorited_movie(tconst):
-    collection = get_mongo_collection("favoritelist")
+    collection_atlas = get_mongo_collection("favoritelist", use_atlas=True)
+    collection_local = get_mongo_collection("favoritelist", use_atlas=False)
+    
     try:
-        result = collection.delete_one({"tconst": tconst})
-        if result.deleted_count == 1:
+        # Tenta deletar em ambas as coleções
+        result_atlas = collection_atlas.delete_one({"tconst": tconst})
+        result_local = collection_local.delete_one({"tconst": tconst})
+        
+        # Verifica se foi deletado em AMBAS as coleções
+        if result_atlas.deleted_count == 1 and result_local.deleted_count == 1:
+            print(f"Filme {tconst} deletado com sucesso de ambas as coleções")
             return {"data": f"Movie {tconst} deleted"}, 200
         else:
-            return {"data": f"Movie {tconst} not found"}, 404
+            # Se falhou em alguma das coleções, informa qual
+            error_msg = []
+            if result_atlas.deleted_count == 0:
+                error_msg.append("Atlas")
+            if result_local.deleted_count == 0:
+                error_msg.append("Local")
+            
+            error_locations = " and ".join(error_msg)
+            print(f"Falha ao deletar filme {tconst} em: {error_locations}")
+            return {"data": f"Failed to delete movie from {error_locations} database"}, 500
     except Exception as e:
-        print(f"{e}")
+        print(f"Erro ao deletar filme: {e}")
         return {"data": "Failed to delete listed movie"}, 500
 
 
