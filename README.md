@@ -2,7 +2,6 @@
  
 ## 📑 Índice
 - [Visão Geral](#-movie-search-backend)
-  - [Scripts de Ingestão de Dados](#1-ingestão-de-dados-em-bulk)
   - [API](#2-rotas-de-consulta)
   - [Documentação da API (Open API / Swagger)](#3-documentação-da-api-swagger)
 - [Como Testar](#como-testar-requisições-no-swagger-ui)
@@ -17,61 +16,109 @@
 
 ## Visão Geral
 
-Este projeto, construído em Python, [é o backend do projeto MOVIE-SEARCH](https://github.com/francisdiasbr/movie-search-frontend). Está dividido em duas partes/etapas:
 
-1. **Ingestão de Dados**
-   - Scripts contendo o processo de ingestão dos dados do IMDB Dataset para o MongoDB.
-   - Dados divididos em dois conjuntos principais: 
-     - Title Basics (id + metadados dos filmes: ano, título, duração, gêneros, etc)
-     - Title Ratings (id + avaliações da comunidade)
-
-2. **Módulo API**
-   - API RESTful para servir dados de filmes e avaliações
-   - Endpoints para busca e filtragem avançada
-   - Integração com serviços externos (Spotify, OpenAI)
-   - Recursos para:
-     - Busca de filmes por diversos critérios
-     - Gerenciamento de favoritos
-     - Geração de reviews usando IA
-     - Recomendações personalizadas
-     - Integração com playlists do Spotify
+> Este projeto, construído em Python, [é o backend do projeto MOVIE-SEARCH](https://github.com/francisdiasbr/movie-search-frontend). Para entender o projeto completo, acesse o repositório do [frontend](https://github.com/francisdiasbr/movie-search-frontend).
 
 
-## 1. Scripts de Ingestão de Dados 
+> Observação: As resenhas geradas são utilizadas para alimentar o Blog The Movie Search (https://themoviesearchblog.netlify.app/)
 
-São scripts ETL (Extract, Transform, Load) que processam em batelada os dados do IMDB Dataset para alimentar a base de consulta no MongoDB. Os dados são divididos em duas coleções:
+
+## 🛠️ Frameworks e Bibliotecas Principais
+
+- Flask: Framework web para construção da API
+- Flask-RESTX: Extensão para desenvolvimento de APIs RESTful com Swagger UI integrado
+- Swagger: Documentação interativa da API
+
+## 🗄️ Banco de Dados
+
+- MongoDB: Banco de dados NoSQL para persistência de dados
+
+## 🔌 Integrações com APIs Externas
+
+- OpenAI: Integração com serviços de IA
+- Spotify: Integração com streaming de música
+- AWS: Serviços em nuvem da Amazon
+- Open Subtitles: Acesso a base de legendas
+
+## 🖥️ Ambiente de Desenvolvimento
+
+- Servidor: execução em ambiente local
+- Swagger (documentação da API): http://localhost:5001/docs
+- Banco de Dados: MongoDB (em execução em um nível gratuito. 512MB de armazenamento. MongoDB Compass para local + MongoDB Atlas para nuvem)
+
+## Base de consulta
+
+A base de dados de filmes é obtida através do [IMDB Dataset](https://www.imdb.com/interfaces/) e salva no MongoDB.
+Ela está salva no MongoDB através da coleção Title Basics.
 
 ### Title Basics
-- Metadados essenciais dos filmes:
+É uma coleção de mais de 680.000 registros de filmes, representando todos os filmes existentes no catálogo do IMDB (Internet Movie Database).
+
+- Contém metadados essenciais dos filmes:
+  - 🆔 tconst (IMDB ID)
   - 🎬 Título original e alternativo
   - 📅 Ano de lançamento
-  - ⏱️ Duração
-  - 🎭 Gêneros
-  - 📝 Descrição
-  - 🎯 Tipo de mídia (filme, série, etc)
+  - 🎭 Tipo de mídia (filme, série, etc)
+  
 
-### Title Ratings
-- Dados de avaliação da comunidade IMDB:
-  - ⭐ Média de avaliações
-  - 📊 Número de votos
- 
-### Processo de Ingestão
-1. **Extração**: Leitura dos arquivos TSV do IMDB
-2. **Transformação**: 
-   - Limpeza e formatação dos dados
-   - Validação de campos
-   - Estruturação para otimizar consultas
-3. **Carga**: 
-   - Inserção otimizada no MongoDB
-   - Criação de índices para performance
-   - Validação de integridade
+## Módulos do sistema
 
-> 📌 **Nota**: Os scripts podem ser executados independentemente, mas recomenda-se primeiro carregar os dados básicos (Title Basics) seguido das avaliações (Title Ratings).
+### Favoritos
+- Sistema de gerenciamento de filmes favoritos que permite:
+  - Adicionar/remover filmes da lista de favoritos
+  - Buscar e filtrar filmes favoritos
+  - Marcar filmes como assistidos
+  - Enriquecimento automático de dados com:
+    - Links para download (magnet links)
+    - Links para legendas
+    - Informações detalhadas do filme (diretor, elenco, país, etc.)
+    - Trilha sonora via Spotify
+    - Citações e curiosidades do filme
+    - Links para Wikipedia
+    - Palavras-chave e sinopse
+    
+
+### Generate Blogpost: resenhas de filmes geradas por IA
+
+Sistema de geração automática de artigos que permite:
+
+  - Criação de análises críticas usando IA:
+    - Conteúdo bilíngue (PT/EN)
+    - Título criativo e contextualizado
+    - Análise de elenco e personagens
+    - Contexto histórico e cultural
+    - Análise técnica e artística
+    - Informações sobre a trilha sonora
+    - Galeria de imagens de cenas do filme
+    - Marcação de conteúdo gerado por IA
+
+  - CRUD completo para gerenciamento de resenhas:
+    - Busca e filtragem de publicações
+    - Criação de novas resenhas autorais;
+    - Edição de resenhas existentes;
+    - Exclusão de resenhas;
+    - Pesquisa por título, autor, palavras-chave, etc.
+
+### Write Review: resenhas autorais
+
+- Sistema de criação manual de resenhas que permite:
+  - Interface para escrita de análises:
+    - Suporte bilíngue (PT/EN)
+    - Editor de texto completo
+    - Galeria de imagens do filme
+    - Marcação de conteúdo original
+
+  - CRUD completo para gerenciamento de resenhas:
+    - Busca e filtragem de publicações
+    - Criação de novas resenhas autorais;
+    - Edição de resenhas existentes;
+    - Exclusão de resenhas;
+    - Pesquisa por título, autor, palavras-chave, etc.
+
+  
 
 
-
-
-## 2. API
+## API
 
 ![API Documentation](assets/swagger.png)
 
@@ -128,19 +175,10 @@ A documentação interativa da API está disponível através do Swagger UI:
 
 ### 1. Configuração do Ambiente
 
-Crie e ative um ambiente virtual e instale as dependências:
+Crie um ambiente virtual, ative o ambiente virtual e instale as dependências:
 
 ```
-# Para o data_ingestion
-cd data_ingestion
-python -m venv venv # criar ambiente virtual
-source venv/bin/activate  # No Windows: venv\Scripts\activate # ativar ambiente virtual
-pip install -r requirements.txt # instalar dependências
-
-
-# Para a API (em outro terminal)
-cd api
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # No Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
@@ -148,38 +186,31 @@ pip install -r requirements.txt
 
 ### 2. Variáveis de Ambiente
 
-Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto com as variáveis de ambiente necessárias (env.example).
+Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto com as variáveis de ambiente necessárias veja o modelo em env.example.
 
 
 
-##  Rodando o Projeto
+##  Rodando o Projeto (subindo a API)
 
-### 1. Ingestão de Dados
-```bash
-# No diretório data_ingestion/
-python ingest.title_basics.py  # Carrega metadados dos filmes
-python ingest.title_ratings.py # Carrega avaliações
-```
 
 ### 2. Subindo a API
 ```bash
-# No diretório api/
-python app.py
+python3 app.py
 ```
+<!-- <br> -->
 A API estará disponível em `http://localhost:5001`
 
-> 📌 **Nota**: Certifique-se de que a ingestão de dados foi concluída antes de subir a API.
 
 
 ## Tech stack
+
+**Swagger**: Biblioteca para documentação da API.
 
 **Flask**: framework web para a construção da API.
 
 **Flask-RESTX**: Extensão para APIs RESTful com Swagger UI integrado.
 
-**MongoDB**: Banco de dados NoSQL para armazenar as informações dos filmes.
-
-**pandas**: Biblioteca para manipulação e análise de dados.
+**MongoDB**: Banco de dados NoSQL para armazenar os dados.
 
 **pymongo**: Biblioteca para interação com MongoDB.
 
@@ -187,41 +218,77 @@ A API estará disponível em `http://localhost:5001`
 
 **Spotify**: Biblioteca para interação com a API do Spotify.
 
+**AWS**: Biblioteca para interação com a API do AWS.
+
+**Open Subtitles**: Biblioteca para interação com a API do Open Subtitles.
+
+
+
 
 
 
 ## Estrutura do Projeto
 
 ```
-📁 ./
-├── 📄 README.md
-├── 📁 assets/
-    ├── 📄 swagger.png
-├── 📁 api/
-│   ├── 📄 app.py
-│   ├── 📄 config.py
-│   ├── 📁 favorites/
-│   │   ├── 📄 controller.py
-│   │   ├── 📄 routes.py
-│   │   └── 📄 scrapper.py
-│   ├── 📁 generate_review/
-│   │   ├── 📄 controller.py
-│   │   └── 📄 routes.py
-│   ├── 📁 movies/
-│   │   ├── 📄 controller.py
-│   │   └── 📄 routes.py
-│   ├── 📄 requirements.txt
-│   ├── 📁 spotify/
-│   │   └── 📄 controller.py
-│   ├── 📁 suggestion/
-│   │   ├── 📄 controller.py
-│   │   └── 📄 routes.py
-│   ├── 📄 utils.py
-│   └── 📁 write_review/
-│       ├── 📄 controller.py
-│       └── 📄 routes.py
-└── 📁 data_ingestion/
-    ├── 📄 ingest.title_basics.py
-    └── 📄 requirements.txt
+.
+├── README.md
+├── app.py
+├── assets
+│   └── swagger.png
+├── config.py
+├── directors
+│   ├── __pycache__
+│   ├── controller.py
+│   ├── routes.py
+│   └── utils.py
+├── favorites
+│   ├── __pycache__
+│   ├── controller.py
+│   ├── external_requests.py
+│   ├── routes.py
+│   └── scrapper.py
+├── generate_blogpost
+│   ├── __pycache__
+│   ├── controller.py
+│   ├── routes.py
+│   ├── scraper.py
+│   └── utils.py
+├── generate_blogpost_trivia
+│   ├── __pycache__
+│   ├── controller.py
+│   ├── routes.py
+│   └── utils.py
+├── images
+│   ├── __pycache__
+│   ├── controller.py
+│   └── routes.py
+├── keywords
+│   ├── __pycache__
+│   ├── controller.py
+│   └── routes.py
+├── movies
+│   ├── __pycache__
+│   ├── controller.py
+│   └── routes.py
+├── personal_opinion
+│   ├── __pycache__
+│   ├── controller.py
+│   └── routes.py
+├── requirements.txt
+├── runtime.txt
+├── spotify
+│   ├── __pycache__
+│   └── controller.py
+├── test_mongo_connection.py
+├── utils.py
+├── venv
+│   ├── bin
+│   ├── include
+│   ├── lib
+│   └── pyvenv.cfg
+└── write_review
+    ├── __pycache__
+    ├── controller.py
+    └── routes.py
 
 ```
