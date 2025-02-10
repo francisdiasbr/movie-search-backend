@@ -27,6 +27,7 @@ class DirectorList(Resource):
     # Rota para recuperar a lista de diretores favoritos
     @api.doc("get_favorited_directors")
     @api.response(200, "Sucesso")
+    
     def get(self):
         print("Requisição para recuperar diretores favoritos recebida")
         return get_favorited_directors()
@@ -41,38 +42,28 @@ class DirectorList(Resource):
         """Adiciona um diretor aos favoritos"""
         print("Requisição para adicionar diretor recebida")
         try:
-            start_time = time.perf_counter()  # Início da medição de tempo
+            start_time = time.perf_counter()
             request_data = request.get_json() or {}
 
             if not isinstance(request_data, dict) or "director" not in request_data:
-                print("Diretor não fornecido no corpo da requisição")
                 return {"data": "Director is required in request body"}, 400
 
             director = str(request_data["director"]).strip()
             if not director:
-                print("Nome do diretor está vazio")
                 return {"data": "Director cannot be empty"}, 400
 
             api_key = OPENAI_API_KEY
-            model = "gpt-4o"
+            model = "gpt-4"
 
-            # Chama a função para adicionar o diretor e obter a resposta
             response, status_code = add_director(director, api_key, model)
-
-            # Verifica se a resposta contém os dados necessários
-            if status_code == 200 and "data" in response:
-                director_info = response["data"]
-                if "movies" not in director_info or "personal_info" not in director_info:
-                    print("Dados incompletos recebidos para o diretor")
-                    return {"data": "Incomplete director data received"}, 500
-
-            elapsed_time = time.perf_counter() - start_time  # Fim da medição de tempo
+            
+            elapsed_time = time.perf_counter() - start_time
             print(f"Tempo para adicionar diretor: {elapsed_time:.2f} segundos")
             return response, status_code
 
         except Exception as e:
-            print(f"Erro ao processar requisição: {e}")
-            return {"data": "Invalid request format"}, 400
+            print(f"Erro ao processar requisição: {str(e)}")
+            return {"data": f"Error processing request: {str(e)}"}, 500
 
 # Rotas para recuperar e deletardetalhes do diretor    
 @api.route("/<string:director>")

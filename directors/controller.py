@@ -9,51 +9,57 @@ COLLECTION_NAME = "favorites_directors"
 
 def add_director(director, api_key, model):
     """Adiciona um diretor aos favoritos e recupera sua filmografia"""
-    start_time = time.perf_counter()  # Início da medição de tempo
+    start_time = time.perf_counter()
 
     if not director:
         return {"data": "Director is required"}, 400
 
     collection = get_mongo_collection(COLLECTION_NAME)
 
-    # Verifica se o diretor já está na lista de diretores favoritos
     existing_director = collection.find_one({"director": director})
     if existing_director:
         return {"data": "Director already listed"}, 409
 
-    # Chama a função para recuperar a filmografia e informações pessoais do diretor
-    director_info_response = get_director_info(api_key, director, model)
-
-    # Verifica se a recuperação da filmografia foi bem-sucedida
-    if director_info_response[1] != 200:
-        return {"data": "Failed to retrieve filmography"}, 500
-
-    director_info = director_info_response[0].get("data")
-
-    # Insere o novo diretor com a filmografia e informações pessoais
     try:
-        director_data = {
+        director_info_response, status_code = get_director_info(api_key, director, model)
+        
+        if status_code != 200:
+            return director_info_response, status_code
+
+        director_data = director_info_response.get("data")
+        if not director_data or not isinstance(director_data, dict):
+            return {"data": "Invalid response format from LLM"}, 500
+
+        if "movies" not in director_data or "personal_info" not in director_data:
+            return {"data": "Missing required fields in LLM response"}, 500
+        
+        insert_data = {
             "director": director,
-            "filmography": director_info.get("movies", []),
-            "personal_info": director_info.get("personal_info", {})
+            "filmography": director_data["movies"],
+            "personal_info": director_data["personal_info"]
         }
-        result = collection.insert_one(director_data)
+        
+        result = collection.insert_one(insert_data)
         inserted_director = collection.find_one({"_id": result.inserted_id})
-        if inserted_director:
-            elapsed_time = time.perf_counter() - start_time  # Fim da medição de tempo
-            print(f"Tempo para adicionar diretor e recuperar filmografia: {elapsed_time:.6f} segundos")
-            return {
-                "data": {
-                    "_id": str(inserted_director["_id"]),
-                    "director": inserted_director["director"],
-                    "filmography": inserted_director.get("filmography", []),
-                    "personal_info": inserted_director.get("personal_info", {})
-                }
-            }, 201
-        return {"data": "Failed to retrieve inserted director"}, 500
+        
+        if not inserted_director:
+            return {"data": "Failed to add director"}, 500
+
+        elapsed_time = time.perf_counter() - start_time
+        print(f"Tempo total: {elapsed_time:.6f} segundos")
+        
+        return {
+            "data": {
+                "_id": str(inserted_director["_id"]),
+                "director": inserted_director["director"],
+                "filmography": inserted_director["filmography"],
+                "personal_info": inserted_director["personal_info"]
+            }
+        }, 201
+            
     except Exception as e:
-        print(f"Error: {e}")
-        return {"data": "Failed to add director"}, 500
+        print(f"Error processing director info: {str(e)}")
+        return {"data": f"Error processing director information: {str(e)}"}, 500
 
 
 def get_favorited_directors():

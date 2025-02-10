@@ -2,8 +2,17 @@
  
 ## 📑 Índice
 - [Visão Geral](#-movie-search-backend)
-  - [API](#2-rotas-de-consulta)
-  - [Documentação da API (Open API / Swagger)](#3-documentação-da-api-swagger)
+- [Frameworks e Bibliotecas Principais](#-frameworks-e-bibliotecas-principais)
+- [Banco de Dados](#-banco-de-dados)
+- [Integrações com APIs Externas](#-integrações-com-apis-externas)
+- [Ambiente de Desenvolvimento](#-ambiente-de-desenvolvimento)
+- [Base de Consulta](#-base-de-consulta)
+- [Módulos do Sistema](#-módulos-do-sistema)
+  - [Favoritos](#-favoritos)
+  - [Generate Blogpost](#-generate-blogpost)
+  - [Write Review](#-write-review)
+- [API](#-api)
+- [Documentação da API (Open API / Swagger)](#3-documentação-da-api-swagger)
 - [Como Testar](#como-testar-requisições-no-swagger-ui)
 - [Instalação e Configuração](#instalação-e-configuração)
   - [Configuração do Ambiente](#1-crie-e-ative-um-ambiente-virtual-e-instale-as-dependências)
@@ -17,11 +26,9 @@
 ## Visão Geral
 
 
-> Este projeto, construído em Python, [é o backend do projeto MOVIE-SEARCH](https://github.com/francisdiasbr/movie-search-frontend). Para entender o projeto completo, acesse o repositório do [frontend](https://github.com/francisdiasbr/movie-search-frontend).
+> Este projeto, construído em Python, é o backend do projeto [Movie-Search](https://github.com/francisdiasbr/movie-search-frontend). Para entender e subir o projeto completo, acesse o repositório do [frontend](https://github.com/francisdiasbr/movie-search-frontend).
 
-
-> Observação: As resenhas geradas são utilizadas para alimentar o Blog The Movie Search (https://themoviesearchblog.netlify.app/)
-
+> Observação: As resenhas geradas são utilizadas para alimentar o Blog The Movie Search [Blog The Movie Search](https://themoviesearchblog.netlify.app/) [(https://themoviesearchblog.netlify.app/)](https://themoviesearchblog.netlify.app/)
 
 ## 🛠️ Frameworks e Bibliotecas Principais
 
@@ -46,12 +53,12 @@
 - Swagger (documentação da API): http://localhost:5001/docs
 - Banco de Dados: MongoDB (em execução em um nível gratuito. 512MB de armazenamento. MongoDB Compass para local + MongoDB Atlas para nuvem)
 
-## Base de consulta
+## Base de dados
 
 A base de dados de filmes é obtida através do [IMDB Dataset](https://www.imdb.com/interfaces/) e salva no MongoDB.
-Ela está salva no MongoDB através da coleção Title Basics.
+Ela está salva no MongoDB através da database <u>movie-search</u> na coleção <u>moviebasics</u>.
 
-### Title Basics
+### Movie Basics
 É uma coleção de mais de 680.000 registros de filmes, representando todos os filmes existentes no catálogo do IMDB (Internet Movie Database).
 
 - Contém metadados essenciais dos filmes:
@@ -62,6 +69,10 @@ Ela está salva no MongoDB através da coleção Title Basics.
   
 
 ## Módulos do sistema
+
+Para cada módulo, há um arquivo controller.py que contém a lógica de negócio e um arquivo routes.py que contém as rotas da API.
+
+Cada um dos módulos possui uma coleção própria no banco de dados.
 
 ### Favoritos
 - Sistema de gerenciamento de filmes favoritos que permite:
@@ -115,7 +126,7 @@ Sistema de geração automática de artigos que permite:
     - Exclusão de resenhas;
     - Pesquisa por título, autor, palavras-chave, etc.
 
-  
+### Directors: favorita os diretores
 
 
 ## API
@@ -192,12 +203,10 @@ Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto com
 
 ##  Rodando o Projeto (subindo a API)
 
-
-### 2. Subindo a API
 ```bash
 python3 app.py
 ```
-<!-- <br> -->
+<br>
 A API estará disponível em `http://localhost:5001`
 
 

@@ -3,7 +3,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_community.callbacks import get_openai_callback
 from pydantic import BaseModel, Field
 from typing import List, Optional
-import time
+import json
 
 class Movie(BaseModel):
     """Esquema para um filme"""
@@ -27,58 +27,87 @@ class DirectorInfo(BaseModel):
     movies: List[Movie] = Field(description="Lista dos filmes dirigidos")
     personal_info: PersonalInfo = Field(description="Informações pessoais do diretor")
 
-
-# função para recuperar a filmografia e informações pessoais do diretor
 def get_director_info(api_key, director_name, model):
-    start_time = time.perf_counter()  # Início da medição de tempo
-    llm = ChatOpenAI(api_key=api_key, model=model)
-
-    # Criação da instrução dentro da função
-    instruction = (
-        f"Retorne a filmografia, em ordem ascendente, dos filmes dirigidos pelo diretor {director_name}. "
-        "Além disso, forneça a idade, data de nascimento, estado civil, número de relacionamentos e aspectos pessoais do diretor. "
-        "Retorne apenas o nome original do filme, o nome primário, o código ID IMDb do filme, e as informações pessoais solicitadas."
-    )
-
-    data_object = {
-        "director": director_name,
-        "instruction": instruction
-    }
-
+    """Recupera informações do diretor usando o LLM"""
     try:
-        conversation = []
-
-        human_message = f"Diretor: {director_name}"
-        system_message = f"Instrução: {instruction}"
-
-        conversation.append(("human", human_message))
-        conversation.append(("system", system_message))
-
-        route_prompt = ChatPromptTemplate.from_messages(conversation)
-
-        llm_router = llm.with_structured_output(schema=DirectorInfo)
+        llm = ChatOpenAI(
+            api_key=api_key,
+            model=model,
+            temperature=0
+        )
         
-        llm_chain = route_prompt | llm_router
+        system_message = """Você é um assistente especializado em cinema com conhecimento profundo sobre diretores.
+        Ao fornecer informações sobre filmografia, inclua TODOS os filmes que o diretor dirigiu E escreveu.
+        Retorne APENAS um objeto JSON válido, sem formatação adicional ou quebras de linha."""
+        
+        human_message = f"""Forneça um JSON completo sobre {director_name} incluindo:
+        1. Todos os filmes que ele dirigiu
+        2. Todos os filmes que ele escreveu
+        3. Informações pessoais precisas
 
-        response = llm_decorator(llm_chain, data_object)
+        Use exatamente este formato, preenchendo com dados reais, consultados do IMDb:
+        {{
+            "movies": [
+                {{
+                    "originalTitle": "Título Original",
+                    "primaryTitle": "Título em Português",
+                    "tconst": "ID do IMDb",
+                    "year": ano de lançamento
+                }}
+            ],
+            "personal_info": {{
+                "age": idade atual,
+                "birth_date": "data de nascimento",
+                "marital_status": "estado civil",
+                "relationships": número de casamentos,
+                "personal_aspects": "aspectos da carreira e estilo de direção",
+                "career_start_year": ano de início da carreira,
+                "directed_movies": número total de filmes dirigidos e escritos
+            }}
+        }}
 
-        # Verifica se a resposta contém os dados necessários
-        if not response or not response.dict().get("movies") or not response.dict().get("personal_info"):
-            raise ValueError("Dados incompletos recebidos do LLM")
+        Importante:
+        - Inclua TODOS os filmes listados no IMDb
+        - Inclua curtas-metragens e documentários
+        - Use os IDs corretos do IMDb (tconst)
+        - Mantenha a precisão das datas e números"""
 
-        director_info = response.dict()  # Acessa todas as informações do diretor
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "human", "content": human_message}
+        ]
 
-        elapsed_time = time.perf_counter() - start_time  # Fim da medição de tempo
-        print(f"Tempo para recuperar filmografia: {elapsed_time:.5f} segundos")
+        response = llm.invoke(messages)
+        print(f"\nResposta do LLM:\n{response.content}\n")
+        
+        if not response or not response.content:
+            raise ValueError("Resposta vazia do LLM")
 
-        return {"ok": True, "data": director_info}, 200
+        content = response.content.strip()
+        if not content.startswith("{"):
+            content = content[content.find("{"):]
+        if not content.endswith("}"):
+            content = content[:content.rfind("}")+1]
 
-    except Exception as error:
-        print(f"\nException: {error}\n")
-        return {"ok": False, "data": str(error)}, 500
+        json_response = json.loads(content)
+        director_info = DirectorInfo(**json_response)
+        result = director_info.model_dump()
+        
+        return {"data": result}, 200
+
+    except json.JSONDecodeError as e:
+        print(f"\nErro ao decodificar JSON: {str(e)}")
+        print(f"Conteúdo que causou o erro: {response.content if 'response' in locals() else 'N/A'}\n")
+        return {"data": "Erro ao processar resposta do LLM: formato JSON inválido"}, 500
+    except Exception as e:
+        print(f"\nErro ao processar informações do diretor: {str(e)}")
+        print(f"Tipo do erro: {type(e)}")
+        if 'response' in locals():
+            print(f"Conteúdo da resposta: {response.content}\n")
+        return {"data": f"Erro ao processar informações do diretor: {str(e)}"}, 500
 
 def llm_decorator(func, obj):
     with get_openai_callback() as cb:
         invoked = func.invoke(obj)
         print('\ncallback\n', cb, '\n')
-    return invoked 
+    return invoked
