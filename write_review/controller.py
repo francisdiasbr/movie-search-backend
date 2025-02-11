@@ -26,11 +26,11 @@ def create_and_save_movie_review(tconst):
             print("Filme não encontrado nos favoritos.")
             return {"status": 404, "message": "Filme não encontrado nos favoritos"}, 404
 
-        print(f"Filme encontrado: {movie.get('primaryTitle')}")
+        # print(f"Filme encontrado: {movie.get('primaryTitle')}")
 
         authoralreviewslist_collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
         authoralreviewslist_collection_local = get_mongo_collection(COLLECTION_NAME, use_atlas=False)
-        print("Conectado às coleções de blogposts (Atlas e Local)")
+        # print("Conectado às coleções de blogposts (Atlas e Local)")
 
         existing_post_atlas = authoralreviewslist_collection_atlas.find_one({"tconst": tconst})
         existing_post_local = authoralreviewslist_collection_local.find_one({"tconst": tconst})
@@ -39,8 +39,12 @@ def create_and_save_movie_review(tconst):
             print("Já existe uma resenha para este filme.")
             return {"status": 400, "message": "Já existe uma resenha para este filme"}, 400
 
-        review_data = request.json.get("data", {})
+        review_data = request.json
+        # print("Dados recebidos:", json.dumps(review_data, indent=2))  # Debug
+
         review_content = review_data.get("content", {})
+        # print("Conteúdo da review:", json.dumps(review_content, indent=2))  # Debug
+
         primaryTitle = movie.get("primaryTitle", "")
 
         creation_timestamp = datetime.now().isoformat()
@@ -48,22 +52,20 @@ def create_and_save_movie_review(tconst):
         review_document = {
             "tconst": tconst,
             "primaryTitle": primaryTitle,
-            "content": {
-                "pt": {
-                    "text": review_content.get("pt", {}).get("text", "")
-                },
-                "en": {
-                    "text": review_content.get("en", {}).get("text", "")
-                }
-            },
+            "content": review_content,
             "created_at": creation_timestamp,
-            "isAiGenerated": False,
+            "isAiGenerated": review_data.get("isAiGenerated", False),
             "references": review_data.get("references", []),
             "images": review_data.get("images", [])
         }
 
+        # print("Documento a ser salvo:", json.dumps(review_document, indent=2))  # Debug
+
         atlas_result = authoralreviewslist_collection_atlas.insert_one(review_document)
         authoralreviewslist_collection_local.insert_one(review_document)
+        
+        # Convertendo o ObjectId para string antes de retornar
+        review_document['_id'] = str(atlas_result.inserted_id)
         
         return {"data": review_document}, 200
 
@@ -154,14 +156,17 @@ def edit_movie_review(tconst, request_data):
 
 
 # Remove uma resenha da base
-def delete_movie_review(tconst, review_id):
+def delete_movie_review(tconst):
+    """Remove uma resenha da base usando apenas o tconst"""
     try:
-        result = authoralreviewslist_collection.delete_one(
-            {"tconst": tconst, "_id": ObjectId(review_id)}
-        )
+        authoralreviewslist_collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
+        authoralreviewslist_collection_local = get_mongo_collection(COLLECTION_NAME, use_atlas=False)
 
-        if result.deleted_count == 1:
-            return {"message": f"Review deleted successfully"}, 200
+        result_atlas = authoralreviewslist_collection_atlas.delete_one({"tconst": tconst})
+        result_local = authoralreviewslist_collection_local.delete_one({"tconst": tconst})
+
+        if result_atlas.deleted_count == 1 or result_local.deleted_count == 1:
+            return {"message": "Review deleted successfully"}, 200
         else:
             return {"status": 404, "message": "Review not found"}, 404
     except Exception as e:
