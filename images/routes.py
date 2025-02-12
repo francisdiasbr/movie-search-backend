@@ -1,7 +1,7 @@
 from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
 
-from .controller import upload_image_to_s3, get_public_image_url, get_all_image_urls, delete_image_from_s3
+from .controller import upload_image_to_s3, get_image_url, get_all_image_urls, delete_image_from_s3, update_image_subtitle
 
 images_bp = Blueprint("images", __name__)
 api = Namespace(
@@ -43,7 +43,7 @@ class ImageDetailOperations(Resource):
     def get(self, tconst, filename):
         """Gera uma URL pública direta para acessar a imagem no S3"""
         BUCKET_NAME = 'themoviesearch'
-        return get_public_image_url(BUCKET_NAME, tconst, filename)
+        return get_image_url(BUCKET_NAME, tconst, filename)
 
     @api.doc("delete_image")
     @api.response(200, "Imagem deletada com sucesso")
@@ -53,5 +53,15 @@ class ImageDetailOperations(Resource):
         """Deleta uma imagem específica de um bucket S3"""
         BUCKET_NAME = 'themoviesearch'
         return delete_image_from_s3(BUCKET_NAME, tconst, filename)
+
+    @api.doc("update_image_subtitle")
+    @api.response(200, "Legenda atualizada com sucesso")
+    @api.response(500, "Erro interno do servidor")
+    def put(self, tconst, filename):
+        """Atualiza a legenda de uma imagem específica"""
+        data = request.get_json()
+        subtitle = data.get('subtitle', '')
+        BUCKET_NAME = 'themoviesearch'
+        return update_image_subtitle(BUCKET_NAME, tconst, filename, subtitle)
 
 images_bp.api = api

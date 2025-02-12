@@ -25,7 +25,10 @@ CORS(
         r"/*": {
             "origins": "*",
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
-            "allow_headers": ["Content-Type", "Authorization"],
+            "allow_headers": ["Content-Type", "Authorization", "Access-Control-Allow-Origin",
+                            "Access-Control-Allow-Headers", "Access-Control-Allow-Methods"],
+            "expose_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
         }
     },
 )
