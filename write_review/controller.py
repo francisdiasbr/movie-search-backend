@@ -51,12 +51,13 @@ def create_and_save_movie_review(tconst):
         
         review_document = {
             "tconst": tconst,
-            "primaryTitle": primaryTitle,
             "content": review_content,
             "created_at": creation_timestamp,
             "isAiGenerated": review_data.get("isAiGenerated", False),
             "references": review_data.get("references", []),
-            "images": review_data.get("images", [])
+            "images": review_data.get("images", []),
+            "primaryTitle": primaryTitle,
+            "originalTitle": originalTitle,
         }
 
         # print("Documento a ser salvo:", json.dumps(review_document, indent=2))  # Debug
@@ -83,13 +84,14 @@ def get_movie_review(tconst):
                 {"tconst": tconst},
                 {
                     "_id": 1,
-                    "tconst": 1,
-                    "primaryTitle": 1,
-                    "content": 1,
                     "created_at": 1,
+                    "content": 1,
                     "isAiGenerated": 1,
+                    "images": 1,
+                    "originalTitle": 1,
+                    "primaryTitle": 1,
                     "references": 1,
-                    "images": 1
+                    "tconst": 1,
                 }
             )
         )

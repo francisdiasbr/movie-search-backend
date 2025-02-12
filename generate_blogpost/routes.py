@@ -31,18 +31,20 @@ blog_post_model = api.model(
     "BlogPost",
     {
         "data": fields.Nested(api.model("BlogPostData", {
-            "tconst": fields.String(description="ID do filme"),
-            "primaryTitle": fields.String(description="Título do filme"),
             "content": fields.Nested(api.model("BlogPostContent", {
                 "en": fields.Nested(blog_content_model),
                 "pt": fields.Nested(blog_content_model)
             })),
-            "original_movie_soundtrack": fields.String(description="Trilha sonora original"),
-            "poster_url": fields.String(description="URL do pôster"),
             "created_at": fields.String(description="Timestamp da criação"),
+            "isAiGenerated": fields.Boolean(description="Indica se a postagem foi gerada por IA"),
+            "images": fields.List(fields.String),
+            "original_movie_soundtrack": fields.String(description="Trilha sonora original"),
+            "originalTitle": fields.String(description="Título original do filme"),
+            "poster_url": fields.String(description="URL do pôster"),
+            "primaryTitle": fields.String(description="Título principal do filme"),
             "references": fields.List(fields.String),
             "soundtrack_video_url": fields.String(description="URL do vídeo da trilha sonora"),
-            "images": fields.List(fields.String)
+            "tconst": fields.String(description="ID do filme"),
         }))
     }
 )

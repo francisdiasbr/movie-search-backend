@@ -59,29 +59,36 @@ def create_and_save_blog_post(tconst, api_key, model, temperature=0.7, max_token
         images = get_google_images(query, num_images=5)
 
         blog_data = {
-            "tconst": tconst,
-            "primaryTitle": movie.get("primaryTitle"),
-            "content": blog_post["content"],  # Já contém as versões pt e en
-            "original_movie_soundtrack": blog_post.get("original_movie_soundtrack"),
-            "poster_url": poster_url,
-            "created_at": creation_timestamp,
-            "references": [],
-            "soundtrack_video_url": blog_post.get("soundtrack_video_url"),
-            "images": images,
+            "data": {
+                "tconst": tconst,
+                "primaryTitle": movie.get("primaryTitle"),
+                "originalTitle": movie.get("originalTitle"),
+                "content": blog_post["content"],
+                "original_movie_soundtrack": blog_post.get("original_movie_soundtrack"),
+                "poster_url": poster_url,
+                "created_at": creation_timestamp,
+                "references": [],
+                "soundtrack_video_url": blog_post.get("soundtrack_video_url"),
+                "images": images,
+                "isAiGenerated": True
+            }
         }
 
-        try:
-            blog_data.pop('_id', None)
-            blogposts_collection_atlas.insert_one(blog_data)
-            blogposts_collection_local.insert_one(blog_data)
-            return {"data": blog_data}, 200
-        except Exception as e:
-            print(f"Erro ao inserir no banco de dados: {e}")
-            return {"status": 500, "message": "Erro ao salvar postagem no banco de dados"}, 500
+        # Remove _id antes de inserir
+        blog_data["data"].pop("_id", None)
+
+        # Insere nos bancos de dados
+        atlas_result = blogposts_collection_atlas.insert_one(blog_data["data"])
+        local_result = blogposts_collection_local.insert_one(blog_data["data"])
+
+        # Adiciona o _id apenas na resposta
+        blog_data["data"]["_id"] = str(atlas_result.inserted_id)
+
+        return blog_data, 200
 
     except Exception as e:
         print(f"Erro inesperado: {e}")
-        return {"status": 500, "message": "Erro interno do servidor"}, 500
+        return {"status": 500, "message": str(e)}, 500
 
 
 def get_blog_post(tconst):
@@ -113,6 +120,8 @@ def get_blog_post(tconst):
                         "conclusion": blog_post.get("conclusion_en", "")
                     }
                 }
+
+                
                 
                 # Remove campos antigos se existirem
                 fields_to_remove = [
@@ -128,10 +137,10 @@ def get_blog_post(tconst):
             
             return {"data": blog_post}, 200
         else:
-            return {"data": "Blog post not found"}, 404
+            return {"message": "Blog post not found"}, 404
     except Exception as e:
         print(f"Erro: {e}")
-        return {"data": "Failed to retrieve blog post"}, 500
+        return {"message": "Failed to retrieve blog post"}, 500
 
 
 def get_blogposts(filters={}, page=1, page_size=10):
