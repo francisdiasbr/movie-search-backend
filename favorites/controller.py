@@ -4,12 +4,14 @@ import requests
 from config import get_mongo_collection, RAPIDAPI_API_KEY
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+from datetime import datetime
 
 from favorites.scrapper import (
+    get_movie_title,
+    get_movie_year,
     get_movie_sm_plot,
     get_movie_quote,
     get_wikipedia_url,
-    get_movie_poster,
     get_movie_country,
     get_movie_trivia,
     get_movie_plot_keywords,
@@ -18,134 +20,98 @@ from favorites.scrapper import (
     get_movie_principal_stars,
     get_writers,
 )
-from movies.controller import get_movie
 from spotify.controller import get_album_by_movie_title
 from utils import sanitize_movie_data
-
-
-def get_magnet_link(tconst):
-    # Define a URL base
-    search_url = f"https://movie_torrent_api1.p.rapidapi.com/search/{tconst}"
-
-    # Define os headers necessários
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "x-rapidapi-ua": "RapidAPI-Playground",
-        "x-rapidapi-key": RAPIDAPI_API_KEY,
-        "x-rapidapi-host": "movie_torrent_api1.p.rapidapi.com",
-    }
-
-    # print(f"Making request to URL: {search_url}")
-    # print(f"Using headers: {headers}")
-
-    # Faz a requisição à API
-    response = requests.get(search_url, headers=headers, verify=False)
-
-    print(f"Response Status Code: {response.status_code}")
-    print(f"Response Content: {response.text}")
-
-    if response.status_code == 200:
-        try:
-            data = response.json()
-            # print(f"Response JSON: {data}")
-            if (
-                data["status"] == "success"
-                and data.get("data")
-                and len(data["data"]) > 0
-            ):
-                magnet_link = data["data"][0].get("magnet")
-                if magnet_link:
-                    return {"data": magnet_link}, 200
-            return {"data": "Magnet link not found"}, 404
-        except ValueError:
-            # print("Error decoding JSON.")
-            return {"data": "Invalid JSON response from API"}, 500
-    else:
-        # print(f"Error {response.status_code} - {response.text}")
-        return {
-            "data": f"Error {response.status_code} - {response.text}"
-        }, response.status_code
+from favorites.external_requests import get_magnet_link, get_subtitle_url
 
 
 def favorite_movie(tconst):
+    print(f"[FAVORITE] Iniciando processo de favoritar filme com tconst: {tconst}")
+    
     if not tconst:
-        print("Error: tconst is required")
+        print("[FAVORITE] Erro: tconst é obrigatório")
         return {"data": "tconst is required"}, 400
 
-    collection = get_mongo_collection("favoritelist")
+    collection_atlas = get_mongo_collection("favoritelist", use_atlas=True)
+    collection_local = get_mongo_collection("favoritelist", use_atlas=False)
 
-    existing_movie = collection.find_one({"tconst": tconst})
-    print(
-        f"Checking if movie with tconst {tconst} already exists: {existing_movie is not None}"
-    )
+    # Verificar em ambas as coleções
+    print("[FAVORITE] Verificando se o filme já existe nas coleções...")
+    existing_movie_atlas = collection_atlas.find_one({"tconst": tconst})
+    existing_movie_local = collection_local.find_one({"tconst": tconst})
 
-    if existing_movie:
+    if existing_movie_atlas or existing_movie_local:
+        print(f"[FAVORITE] Filme {tconst} já existe na lista de favoritos")
         return {"data": "Movie already listed"}, 409
 
-    movie_info = get_movie(tconst)
-    print(f"Retrieved movie info: {movie_info}")
+    print("[FAVORITE] Obtendo título do filme...")
+    movie_title = get_movie_title(tconst)
+    if not movie_title:
+        print(f"[FAVORITE] Título do filme {tconst} não encontrado no IMDB")
+        return {"data": "Título do filme não encontrado no IMDB"}, 404
 
-    if movie_info.get("status") == 404:
-        print("Movie not found in ratings")
-        return {"status": 404, "data": movie_info["data"]}, 404
-    elif movie_info.get("status") == 400:
-        print("Bad request for movie info")
-        return {"status": 400, "data": movie_info["data"]}, 400
+    print(f"[FAVORITE] Título obtido: {movie_title}")
+    movie_data = {
+        "primaryTitle": movie_title,
+    }
 
-    movie_data = movie_info["data"]
-    movie_title = movie_data.get("primaryTitle")
-    print(f"Movie title: {movie_title}")
+    print("[FAVORITE] Iniciando coleta de dados em paralelo...")
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_func = {
+            executor.submit(get_magnet_link, tconst): "magnet_link",
+            executor.submit(get_subtitle_url, tconst): "subtitle_url",
+            executor.submit(get_movie_country, tconst): "country",
+            executor.submit(get_director, tconst): "director",
+            executor.submit(get_movie_genres, tconst): "genres",
+            executor.submit(get_movie_sm_plot, tconst): "plot",
+            executor.submit(get_movie_plot_keywords, tconst): "plot_keywords",
+            executor.submit(get_movie_quote, tconst): "quote",
+            executor.submit(get_album_by_movie_title, movie_title): "soundtrack",
+            executor.submit(get_movie_principal_stars, tconst): "stars",
+            executor.submit(get_movie_trivia, tconst): "trivia",
+            executor.submit(get_wikipedia_url, movie_title): "wiki",
+            executor.submit(get_writers, tconst): "writers",
+            executor.submit(get_movie_year, tconst): "startYear",
+        }
 
-    # Funções de scraping a serem executadas em paralelo
-    def fetch_data():
-        with ThreadPoolExecutor() as executor:
-            futures = {
-                executor.submit(get_magnet_link, tconst): "magnet_link",
-                executor.submit(get_movie_country, tconst): "country",
-                executor.submit(get_director, tconst): "director",
-                executor.submit(get_movie_genres, tconst): "genres",
-                executor.submit(get_movie_sm_plot, tconst): "plot",
-                executor.submit(get_movie_plot_keywords, tconst): "plot_keywords",
-                executor.submit(get_movie_quote, tconst): "quote",
-                executor.submit(get_album_by_movie_title, movie_title): "soundtrack",
-                executor.submit(get_movie_principal_stars, tconst): "stars",
-                executor.submit(get_movie_trivia, tconst): "trivia",
-                executor.submit(get_wikipedia_url, movie_title): "wiki",
-                executor.submit(get_writers, tconst): "writers",
-            }
+        for future in as_completed(future_to_func):
+            func_name = future_to_func[future]
+            try:
+                result = future.result()
+                if result is not None:
+                    movie_data[func_name] = result
+                    print(f"[FAVORITE] Dados obtidos com sucesso para {func_name}")
+                else:
+                    print(f"[FAVORITE] Nenhum dado obtido para {func_name}")
+            except Exception as e:
+                print(f"[FAVORITE] Erro ao obter {func_name}: {e}")
 
-            for future in as_completed(futures):
-                key = futures[future]
-                start_time = time.perf_counter()  # Usa perf_counter para maior precisão
-                try:
-                    result = future.result()
-                    elapsed_time = time.perf_counter() - start_time  # Calcula o tempo decorrido
-                    print(f"Tempo para {key}: {elapsed_time:.6f} segundos")  # Mostra mais casas decimais
-                    if key == "magnet_link":
-                        movie_data[key] = result[0]["data"] if result[1] == 200 else None
-                    else:
-                        movie_data[key] = result
-                except Exception as e:
-                    print(f"Error fetching {key}: {e}")
-                    movie_data[key] = None
+    print("[FAVORITE] Adicionando dados básicos do filme...")
+    # Adiciona dados básicos do filme
+    movie_data.update({
+        "tconst": tconst,
+        "created_at": datetime.now().isoformat(),
+        "references": []  # Array vazio para armazenar referências
+    })
 
-    fetch_data()
+    # Remove campos vazios ou nulos para economizar espaço
+    movie_data = {k: v for k, v in movie_data.items() if v is not None and v != ""}
+    print(f"[FAVORITE] Dados finais do filme: {movie_data}")
 
-    movie_data["watched"] = False
-
-    # Insere as informações na coleção favoritelist
     try:
-        result = collection.insert_one(movie_data)
-        inserted_movie = collection.find_one({"_id": result.inserted_id})
-        if inserted_movie:
-            inserted_movie["_id"] = str(inserted_movie["_id"])
-            return {"data": inserted_movie}, 201
-        print("Failed to retrieve inserted movie")
-        return {"data": "Failed to retrieve inserted movie"}, 500
+        print("[FAVORITE] Iniciando inserção nas coleções...")
+        # Crie uma cópia para cada inserção
+        movie_data_atlas = movie_data.copy()
+        movie_data_local = movie_data.copy()
+        result_atlas = collection_atlas.insert_one(movie_data_atlas)
+        result_local = collection_local.insert_one(movie_data_local)
+        # Adicione o _id retornado pelo Atlas como string na resposta
+        movie_data["_id"] = str(result_atlas.inserted_id)
+        print(f"[FAVORITE] Filme inserido com sucesso. ID: {movie_data['_id']}")
+        return {"data": movie_data}, 201
     except Exception as e:
-        print(f"Error during insertion: {e}")
-        return {"data": "Failed to list movie"}, 500
+        print(f"[FAVORITE] Erro ao inserir filme: {e}")
+        return {"status": 500, "message": "Erro ao inserir filme"}, 500
 
 
 # Recupera um filme favoritado
@@ -168,46 +134,125 @@ def get_favorited_movie(tconst):
 
 
 # Edita um filme favoritado
-def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None):
+def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, references=None):
     collection = get_mongo_collection("favoritelist")
     update_data = {}
 
+    print(f"[EDIT] Iniciando edição do filme tconst: {tconst}")
+    print(f"[EDIT] Dados recebidos - soundtrack: {soundtrack}, wiki: {wiki}, watched: {watched}, references: {references}")
+
+    # Busca o filme atual para manter as referências existentes
+    current_movie = collection.find_one({"tconst": tconst})
+    if not current_movie:
+        print(f"[EDIT] Filme {tconst} não encontrado")
+        return {"data": f"Movie {tconst} not found"}, 404
+
+    print(f"[EDIT] Filme encontrado: {current_movie}")
+
+    # Sempre inclui as referências no update_data
+    if references is not None:
+        update_data["references"] = references
+        print(f"[EDIT] Novas referências a serem salvas: {references}")
+        
+        # Atualiza o blogpost se existir
+        try:
+            blogposts_collection = get_mongo_collection("blogposts")
+            blogpost = blogposts_collection.find_one({"tconst": tconst})
+            if blogpost:
+                blogposts_collection.update_one(
+                    {"tconst": tconst},
+                    {"$set": {"references": references}}
+                )
+                print(f"[EDIT] Blogpost atualizado com novas referências: {references}")
+        except Exception as e:
+            print(f"[EDIT] Erro ao atualizar referências no blogpost: {e}")
+    elif "references" in current_movie:
+        # Se não houver novas referências, mantém as existentes
+        current_references = current_movie["references"]
+        update_data["references"] = current_references
+        print(f"[EDIT] Mantendo referências existentes: {current_references}")
+
     if soundtrack is not None:
         update_data["soundtrack"] = soundtrack
+        # Atualiza o blogpost se existir
+        try:
+            blogposts_collection = get_mongo_collection("blogposts")
+            blogpost = blogposts_collection.find_one({"tconst": tconst})
+            if blogpost:
+                blogposts_collection.update_one(
+                    {"tconst": tconst},
+                    {"$set": {"spotify_album_url": soundtrack}}
+                )
+                print(f"[EDIT] Blogpost atualizado com nova URL do Spotify: {soundtrack}")
+        except Exception as e:
+            print(f"[EDIT] Erro ao atualizar blogpost: {e}")
+
     if wiki is not None:
         update_data["wiki"] = wiki
     if watched is not None:
         update_data["watched"] = watched
 
     if not update_data:
+        print("[EDIT] Nenhum campo para atualizar")
         return {"data": "No fields to update"}, 400
+
     try:
+        print(f"[EDIT] Dados a serem atualizados: {update_data}")
         result = collection.update_one({"tconst": tconst}, {"$set": update_data})
-        if result.modified_count == 1:
-            return {"data": update_data}, 200
+        print(f"[EDIT] Resultado da atualização - matched: {result.matched_count}, modified: {result.modified_count}")
+        
+        # Verifica se o filme foi encontrado (matched_count > 0)
+        if result.matched_count > 0:
+            print(f"[EDIT] Filme {tconst} atualizado com sucesso")
+            # Retorna os dados atualizados junto com os dados existentes
+            updated_movie = collection.find_one({"tconst": tconst})
+            updated_movie["_id"] = str(updated_movie["_id"])
+            print(f"[EDIT] Dados atualizados retornados: {updated_movie}")
+            return {"data": updated_movie}, 200
         else:
-            return {"data": f"Movie {tconst} not found or no changes made"}, 404
+            print(f"[EDIT] Filme {tconst} não encontrado")
+            return {"data": f"Movie {tconst} not found"}, 404
     except Exception as e:
-        print(f"{e}")
+        print(f"[EDIT] Erro ao atualizar filme: {e}")
         return {"data": "Failed to update favorited movie"}, 500
 
 
 # Remove um filme dos favoritos
 def delete_favorited_movie(tconst):
-    collection = get_mongo_collection("favoritelist")
+    collection_atlas = get_mongo_collection("favoritelist", use_atlas=True)
+    collection_local = get_mongo_collection("favoritelist", use_atlas=False)
+
     try:
-        result = collection.delete_one({"tconst": tconst})
-        if result.deleted_count == 1:
+        # Tenta deletar em ambas as coleções
+        result_atlas = collection_atlas.delete_one({"tconst": tconst})
+        result_local = collection_local.delete_one({"tconst": tconst})
+
+        # Verifica se foi deletado em AMBAS as coleções
+        if result_atlas.deleted_count == 1 and result_local.deleted_count == 1:
+            print(f"Filme {tconst} deletado com sucesso de ambas as coleções")
             return {"data": f"Movie {tconst} deleted"}, 200
         else:
-            return {"data": f"Movie {tconst} not found"}, 404
+            # Se falhou em alguma das coleções, informa qual
+            error_msg = []
+            if result_atlas.deleted_count == 0:
+                error_msg.append("Atlas")
+            if result_local.deleted_count == 0:
+                error_msg.append("Local")
+
+            error_locations = " and ".join(error_msg)
+            print(f"Falha ao deletar filme {tconst} em: {error_locations}")
+            return {
+                "data": f"Failed to delete movie from {error_locations} database"
+            }, 500
     except Exception as e:
-        print(f"{e}")
+        print(f"Erro ao deletar filme: {e}")
         return {"data": "Failed to delete listed movie"}, 500
 
 
 # Recupera os filmes favoritados
-def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, search_term=""):
+def get_favorited_movies(
+    filters={}, sorters=["_id", -1], page=1, page_size=10, search_term=""
+):
     collection = get_mongo_collection("favoritelist")
 
     search_term = search_term or filters.get("search_term") or filters.get("tconst")
@@ -216,7 +261,6 @@ def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, 
     if search_term:
         filters["$or"] = [
             {"tconst": search_term},
-            {"originalTitle": {"$regex": search_term, "$options": "i"}},
             {"primaryTitle": {"$regex": search_term, "$options": "i"}},
             {"director": {"$regex": search_term, "$options": "i"}},
         ]
@@ -227,7 +271,8 @@ def get_favorited_movies(filters={}, sorters=["_id", -1], page=1, page_size=10, 
 
     unique_countries = collection.distinct("country")
     unique_years = [
-        int(year) for year in collection.distinct("startYear") if year is not None
+        int(year) for year in collection.distinct("startYear") 
+        if year is not None and str(year).isdigit()
     ]
 
     try:

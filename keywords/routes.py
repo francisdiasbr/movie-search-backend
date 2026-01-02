@@ -4,6 +4,7 @@ from keywords.controller import (
     add_keyword,
     get_favorited_keywords,
     delete_favorited_keyword,
+    suggest_movies_by_keywords,
 )
 
 keywords_bp = Blueprint("keywords", __name__)
@@ -14,6 +15,46 @@ api = Namespace(
 keyword_model = api.model(
     "KeywordInput",
     {"keyword": fields.String(required=True, description="Palavra-chave do filme")},
+)
+
+movie_suggestion_model = api.model(
+    "MovieSuggestion",
+    {
+        "title": fields.String(required=True, description="Título do filme"),
+        "year": fields.Integer(required=True, description="Ano de lançamento"),
+        "tconst": fields.String(
+            required=True,
+            description="IMDb ID (tconst) do filme",
+            example="tt0068646",
+        ),
+        "description": fields.String(
+            required=True, description="Breve descrição (2-3 linhas)"
+        ),
+        "relevance": fields.String(
+            required=True,
+            description=
+                "Explicação objetiva de como as palavras-chave aparecem no filme",
+        ),
+    },
+)
+
+movie_suggestions_data_model = api.model(
+    "MovieSuggestionsData",
+    {"movies": fields.List(fields.Nested(movie_suggestion_model), required=True)},
+)
+
+movie_suggestions_response_model = api.model(
+    "MovieSuggestionsResponse",
+    {"data": fields.Nested(movie_suggestions_data_model, required=True)},
+)
+
+keywords_model = api.model(
+    "KeywordsInput",
+    {
+        "keywords": fields.List(
+            fields.String, required=True, description="Lista de palavras-chave"
+        )
+    },
 )
 
 
@@ -57,6 +98,32 @@ class Keyword(Resource):
     def delete(self, keyword):
         """Remove uma palavra-chave dos favoritos"""
         return delete_favorited_keyword(keyword)
+
+
+@api.route("/suggest-movies")
+class MovieSuggestions(Resource):
+    @api.doc("suggest_movies")
+    @api.expect(keywords_model)
+    @api.marshal_with(movie_suggestions_response_model, code=200, description="Sugestões geradas com sucesso")
+    @api.response(400, "Lista de keywords inválida")
+    @api.response(500, "Erro ao gerar sugestões")
+    def post(self):
+        """Sugere filmes baseado em uma lista de palavras-chave"""
+        try:
+            request_data = request.get_json() or {}
+
+            if not isinstance(request_data, dict) or "keywords" not in request_data:
+                return {"data": "Lista de keywords é obrigatória"}, 400
+
+            keywords = request_data["keywords"]
+            if not isinstance(keywords, list) or not keywords:
+                return {"data": "Lista de keywords inválida"}, 400
+
+            return suggest_movies_by_keywords(keywords)
+
+        except Exception as e:
+            print(f"Error processing request: {e}")
+            return {"data": "Formato de requisição inválido"}, 400
 
 
 keywords_bp.api = api

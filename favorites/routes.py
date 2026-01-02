@@ -17,10 +17,24 @@ api = Namespace("favorites", description="Operações relacionadas aos filmes fa
 favorite_movie_model = api.model(
     "FavoriteMovie",
     {
+        "country": fields.String(description="País"),
+        "created_at": fields.String(description="Data de criação"),
+        "director": fields.String(description="Diretor"),
+        "genres": fields.List(fields.String, description="Gêneros"),
+        "magnet_link": fields.String(description="Magnet link"),
+        "plot": fields.String(description="Sinopse"),
+        "plot_keywords": fields.List(fields.String, description="Palavras-chave"),
         "primaryTitle": fields.String(description="Título do filme"),
-        "startYear": fields.Integer(description="Ano de lançamento"),
+        "quote": fields.String(description="Citação"),
+        "references": fields.List(fields.String, description="Referências"),
         "soundtrack": fields.String(description="Link da trilha sonora"),
+        "startYear": fields.Integer(description="Ano de lançamento"),
+        "stars": fields.List(fields.String, description="Atores principais"),
+        "subtitle_url": fields.String(description="URL da legenda"),
+        "tconst": fields.String(description="ID IMDB"),
+        "trivia": fields.String(description="Curiosidades"),
         "wiki": fields.String(description="Link da Wikipedia"),
+        "writers": fields.List(fields.String, description="Roteiristas"),
     },
 )
 
@@ -84,6 +98,7 @@ class FavoriteMovie(Resource):
             request_data.get("soundtrack"),
             request_data.get("wiki"),
             request_data.get("watched"),
+            request_data.get("references"),
         )
 
     @api.doc("delete_favorite_movie")
@@ -101,9 +116,12 @@ class TorrentMagnet(Resource):
     @api.response(404, "Filme não encontrado")
     def get(self, tconst):
         """Obtém o link magnet para o filme especificado"""
-        result, status_code = get_magnet_link(tconst)
-
-        return result, status_code
+        magnet_link = get_magnet_link(tconst)
+        
+        if magnet_link:
+            return {"magnet_link": magnet_link}, 200
+        else:
+            return {"message": "Magnet link não encontrado para este filme"}, 404
 
 
 favorites_bp.api = api
