@@ -38,11 +38,14 @@ def get_all_recommendations(page=1, page_size=10, search_term=""):
     
     # Filtra por termo de busca
     if search_term:
-        filters["$or"] = [
-            {"tconst": search_term},
-            {"title": {"$regex": search_term, "$options": "i"}},
-            {"director": {"$regex": search_term, "$options": "i"}},
-        ]
+        # Garante que search_term seja uma string para usar com $regex
+        search_term_str = str(search_term) if search_term else ""
+        if search_term_str:
+            filters["$or"] = [
+                {"tconst": search_term},
+                {"title": {"$regex": search_term_str, "$options": "i"}},
+                {"director": {"$regex": search_term_str, "$options": "i"}},
+            ]
     
     try:
         total_documents = collection.count_documents(filters)

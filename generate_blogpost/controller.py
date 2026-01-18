@@ -1,6 +1,5 @@
-from flask import request, jsonify
-import os
 from config import get_mongo_collection
+from utils import sanitize_filters
 from .utils import generate_blog_post
 import time
 from datetime import datetime
@@ -197,6 +196,9 @@ def get_blogposts(filters={}, page=1, page_size=10):
                 ]
             else:
                 search_filters[key] = value
+
+        # Sanitiza os filtros para garantir que valores $regex sejam strings
+        search_filters = sanitize_filters(search_filters)
 
         total_documents = blogposts_collection.count_documents(search_filters)
         skip = (page - 1) * page_size

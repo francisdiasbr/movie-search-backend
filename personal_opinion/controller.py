@@ -7,6 +7,7 @@ from botocore.exceptions import ClientError
 from urllib.parse import quote_plus, quote
 
 from config import get_mongo_collection, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+from utils import sanitize_filters
 
 
 COLLECTION_NAME = "personal_opinions"
@@ -115,6 +116,9 @@ def search_personal_opinions(filters, page=1, page_size=10):
                 search_filters[key] = {"$regex": value, "$options": "i"}
             else:
                 search_filters[key] = value
+
+        # Sanitiza os filtros para garantir que valores $regex sejam strings
+        search_filters = sanitize_filters(search_filters)
 
         total_documents = personal_opinions_collection.count_documents(search_filters)
         skip = (page - 1) * page_size

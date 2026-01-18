@@ -51,6 +51,7 @@ multidict==6.1.0
 mypy-extensions==1.0.0
 nodeenv==1.9.1
 numpy
+Pillow==10.4.0
 openai==1.58.1
 google-genai==0.6.0
 orjson==3.10.12

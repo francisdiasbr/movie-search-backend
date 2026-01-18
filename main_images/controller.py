@@ -7,6 +7,7 @@ from botocore.exceptions import ClientError
 from urllib.parse import quote_plus, quote
 
 from config import get_mongo_collection, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+from utils import optimize_image
 
 
 COLLECTION_NAME = "main-images"
@@ -83,9 +84,12 @@ def upload_image_to_s3(file, bucket_name, tconst, subtitle_en="", subtitle_pt=""
             content_type = "image/jpeg"
 
     try:
+        # Otimiza a imagem antes do upload (redimensiona e comprime)
+        optimized_file = optimize_image(file, max_width=800, quality=85)
+        
         # Faz o upload para o S3
         s3_client.upload_fileobj(
-            file, bucket_name, object_name, ExtraArgs={"ContentType": content_type}
+            optimized_file, bucket_name, object_name, ExtraArgs={"ContentType": content_type}
         )
         
         # Adiciona tags com as legendas

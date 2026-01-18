@@ -16,6 +16,7 @@ from main_images.routes import main_images_bp
 from spotify.routes import spotify_bp
 from sticker.routes import sticker_bp
 from recommendations.routes import recommendations_bp
+from home.routes import home_bp
 
 # Flask instance
 app = Flask(__name__)
@@ -101,6 +102,7 @@ app.register_blueprint(spotify_bp)
 app.register_blueprint(main_images_bp)
 app.register_blueprint(sticker_bp)
 app.register_blueprint(recommendations_bp)
+app.register_blueprint(home_bp)
 
 # Add namespaces
 api.add_namespace(directors_bp.api)
@@ -115,6 +117,7 @@ api.add_namespace(spotify_bp.api)
 api.add_namespace(main_images_bp.api)
 api.add_namespace(sticker_bp.api)
 api.add_namespace(recommendations_bp.api)
+api.add_namespace(home_bp.api)
 
 # main function to start the server
 if __name__ == "__main__":

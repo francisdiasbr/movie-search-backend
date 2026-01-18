@@ -21,7 +21,7 @@ from favorites.scrapper import (
     get_writers,
 )
 from spotify.controller import get_album_by_movie_title
-from utils import sanitize_movie_data
+from utils import sanitize_movie_data, sanitize_filters
 from favorites.external_requests import get_magnet_link, get_subtitle_url
 
 
@@ -259,15 +259,21 @@ def get_favorited_movies(
 
     # Filtra `search_term` no campo `tconst` ou `primaryTitle`
     if search_term:
-        filters["$or"] = [
-            {"tconst": search_term},
-            {"primaryTitle": {"$regex": search_term, "$options": "i"}},
-            {"director": {"$regex": search_term, "$options": "i"}},
-        ]
+        # Garante que search_term seja uma string para usar com $regex
+        search_term_str = str(search_term) if search_term else ""
+        if search_term_str:
+            filters["$or"] = [
+                {"tconst": search_term},
+                {"primaryTitle": {"$regex": search_term_str, "$options": "i"}},
+                {"director": {"$regex": search_term_str, "$options": "i"}},
+            ]
 
     country = filters.get("country")
     if country:
         filters["country"] = country
+
+    # Sanitiza os filtros para garantir que valores $regex sejam strings
+    filters = sanitize_filters(filters)
 
     unique_countries = collection.distinct("country")
     unique_years = [

@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 
 from config import get_mongo_collection
-from utils import sanitize_movie_data
+from utils import sanitize_movie_data, sanitize_filters
 from bson import ObjectId
 
 authoralreviewslist_collection = get_mongo_collection("authoralreviewslist")
@@ -202,10 +202,13 @@ def get_created_reviews(filters={}, sorters=["_id", -1], page=1, page_size=10):
     collection = authoralreviewslist_collection
 
     try:
-        total_documents = collection.count_documents(filters)
+        # Sanitiza os filtros para garantir que valores $regex sejam strings
+        sanitized_filters = sanitize_filters(filters)
+        
+        total_documents = collection.count_documents(sanitized_filters)
         skip = (page - 1) * page_size
         items = list(
-            collection.find(filters)
+            collection.find(sanitized_filters)
             .sort(sorters[0], sorters[1])
             .skip(skip)
             .limit(page_size)
