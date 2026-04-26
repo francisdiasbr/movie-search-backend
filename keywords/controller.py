@@ -1,7 +1,6 @@
 from flask import request, jsonify
 from config import get_mongo_collection
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from openai import OpenAI
 from pydantic import BaseModel, Field, constr, conint
 from typing import List
 from config import OPENAI_API_KEY
@@ -140,36 +139,39 @@ def suggest_movies_by_keywords(keywords):
         return {"data": "Lista de keywords é obrigatória"}, 400
 
     try:
-        llm = ChatOpenAI(api_key=OPENAI_API_KEY, model="gpt-4o", temperature=0.7)
+        client = OpenAI(api_key=OPENAI_API_KEY)
 
-        system_message = SystemMessage(
-            content=(
-                "Você é um curador de cinema especializado em encontrar filmes que contenham, de forma literal e explícita, as palavras-chave fornecidas. Porém não seja óbvio indicando somente filmes muito conhecidos, pois a vantagem desta sugestão é conhecer o novo.\n"
-                "Só sugira filmes que realmente apresentem personagens, cenas, profissões, temas ou elementos diretamente relacionados às palavras-chave, de maneira objetiva.\n"
-                "Não faça interpretações metafóricas, filosóficas ou subjetivas das palavras-chave. Se não encontrar filmes suficientes, retorne apenas os que realmente se encaixam."
-            )
+        response = client.beta.chat.completions.parse(
+            model="gpt-4o",
+            temperature=0.7,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Você é um curador de cinema especializado em encontrar filmes que contenham, de forma literal e explícita, as palavras-chave fornecidas. Porém não seja óbvio indicando somente filmes muito conhecidos, pois a vantagem desta sugestão é conhecer o novo.\n"
+                        "Só sugira filmes que realmente apresentem personagens, cenas, profissões, temas ou elementos diretamente relacionados às palavras-chave, de maneira objetiva.\n"
+                        "Não faça interpretações metafóricas, filosóficas ou subjetivas das palavras-chave. Se não encontrar filmes suficientes, retorne apenas os que realmente se encaixam."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Com base nas palavras-chave: {', '.join(keywords)},\n"
+                        "sugira até 5 filmes em que as palavras-chave estejam presentes de forma literal.\n"
+                        "Para cada filme, forneça:\n"
+                        "- Título\n"
+                        "- Ano de lançamento\n"
+                        "- ID do IMDb (tconst) no formato 'tt1234567' ou 'tt12345678'\n"
+                        "- Uma breve descrição (2-3 linhas)\n"
+                        "- Explique de forma objetiva como as palavras-chave aparecem no filme\n\n"
+                        "Se não houver filmes suficientes, retorne apenas os que realmente se encaixam. Não force relação!"
+                    ),
+                },
+            ],
+            response_format=MovieSuggestions,
         )
 
-        human_message = HumanMessage(
-            content=(
-                f"Com base nas palavras-chave: {', '.join(keywords)},\n"
-                "sugira até 5 filmes em que as palavras-chave estejam presentes de forma literal.\n"
-                "Para cada filme, forneça:\n"
-                "- Título\n"
-                "- Ano de lançamento\n"
-                "- ID do IMDb (tconst) no formato 'tt1234567' ou 'tt12345678'\n"
-                "- Uma breve descrição (2-3 linhas)\n"
-                "- Explique de forma objetiva como as palavras-chave aparecem no filme (exemplo: 'o protagonista é um repórter', 'há uma cena de consulta astrológica', etc)\n\n"
-                "Se não houver filmes suficientes, retorne apenas os que realmente se encaixam. Não force relação!"
-            )
-        )
-
-        response = llm.with_structured_output(MovieSuggestions).invoke(
-            [system_message, human_message]
-        )
-
-        # Converte o objeto Pydantic em dicionário
-        return {"data": response.model_dump()}, 200
+        return {"data": response.choices[0].message.parsed.model_dump()}, 200
 
     except Exception as e:
         print(f"Error: {e}")

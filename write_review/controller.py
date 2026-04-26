@@ -52,27 +52,20 @@ def create_and_save_movie_review(tconst):
             }, 400
 
         review_data = request.json
-        # Verifica se existe conteúdo em português na estrutura correta
-        if not review_data or not review_data.get("data", {}).get("content", {}).get(
-            "pt", {}
-        ).get("text"):
+        if not review_data or not review_data.get("content", {}).get("pt", {}).get("text"):
             return {"status": 400, "message": "Conteúdo da review é obrigatório"}, 400
 
-        # Extrair o conteúdo corretamente da estrutura de dados
-        review_content = review_data.get("data", {}).get("content", {})
-
-        # Obter dados do filme
+        review_content = review_data.get("content", {})
         primaryTitle = movie.get("primaryTitle", "")
-
         creation_timestamp = datetime.now().isoformat()
 
         review_document = {
             "tconst": tconst,
-            "content": review_content,  # Agora contém a estrutura correta do conteúdo
+            "content": review_content,
             "created_at": creation_timestamp,
-            "isAiGenerated": review_data.get("data", {}).get("isAiGenerated", False),
-            "references": review_data.get("data", {}).get("references", []),
-            "images": review_data.get("data", {}).get("images", []),
+            "isAiGenerated": review_data.get("isAiGenerated", False),
+            "references": review_data.get("references", []),
+            "images": review_data.get("images", []),
             "primaryTitle": primaryTitle,
         }
 
@@ -198,20 +191,16 @@ def delete_movie_review(tconst):
 
 
 # Recupera as resenhas criadas
-def get_created_reviews(filters={}, sorters=["_id", -1], page=1, page_size=10):
+def get_created_reviews(filters={}, sorters=["_id", -1]):
     collection = authoralreviewslist_collection
 
     try:
-        # Sanitiza os filtros para garantir que valores $regex sejam strings
         sanitized_filters = sanitize_filters(filters)
-        
+
         total_documents = collection.count_documents(sanitized_filters)
-        skip = (page - 1) * page_size
         items = list(
             collection.find(sanitized_filters)
             .sort(sorters[0], sorters[1])
-            .skip(skip)
-            .limit(page_size)
         )
 
         for item in items:

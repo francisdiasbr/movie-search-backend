@@ -20,7 +20,6 @@ from favorites.scrapper import (
     get_movie_principal_stars,
     get_writers,
 )
-from spotify.controller import get_album_by_movie_title
 from utils import sanitize_movie_data, sanitize_filters
 from favorites.external_requests import get_magnet_link, get_subtitle_url
 
@@ -70,8 +69,7 @@ def favorite_movie(tconst):
             executor.submit(get_movie_sm_plot, tconst): "plot",
             executor.submit(get_movie_plot_keywords, tconst): "plot_keywords",
             executor.submit(get_movie_quote, tconst): "quote",
-            executor.submit(get_album_by_movie_title, movie_title): "soundtrack",
-            executor.submit(get_movie_principal_stars, tconst): "stars",
+executor.submit(get_movie_principal_stars, tconst): "stars",
             executor.submit(get_movie_trivia, tconst): "trivia",
             executor.submit(get_wikipedia_url, movie_title): "wiki",
             executor.submit(get_writers, tconst): "writers",

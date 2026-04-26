@@ -161,6 +161,4 @@ class ReviewSearch(Resource):
 
         return get_created_reviews(
             filters=request_data.get("filters", {}),
-            page=request_data.get("page", 1),
-            page_size=request_data.get("page_size", 10),
         )
