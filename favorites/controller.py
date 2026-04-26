@@ -7,17 +7,18 @@ import time
 from datetime import datetime
 
 from favorites.scrapper import (
-    get_movie_title,
-    get_movie_year,
-    get_movie_sm_plot,
-    get_movie_quote,
-    get_wikipedia_url,
-    get_movie_country,
-    get_movie_trivia,
-    get_movie_plot_keywords,
     get_director,
+    get_movie_country,
     get_movie_genres,
+    get_movie_plot_keywords,
+    get_movie_poster,
     get_movie_principal_stars,
+    get_movie_quote,
+    get_movie_sm_plot,
+    get_movie_title,
+    get_movie_trivia,
+    get_movie_year,
+    get_wikipedia_url,
     get_writers,
 )
 from utils import sanitize_movie_data, sanitize_filters
@@ -68,8 +69,9 @@ def favorite_movie(tconst):
             executor.submit(get_movie_genres, tconst): "genres",
             executor.submit(get_movie_sm_plot, tconst): "plot",
             executor.submit(get_movie_plot_keywords, tconst): "plot_keywords",
+            executor.submit(get_movie_poster, tconst): "poster_url",
             executor.submit(get_movie_quote, tconst): "quote",
-executor.submit(get_movie_principal_stars, tconst): "stars",
+            executor.submit(get_movie_principal_stars, tconst): "stars",
             executor.submit(get_movie_trivia, tconst): "trivia",
             executor.submit(get_wikipedia_url, movie_title): "wiki",
             executor.submit(get_writers, tconst): "writers",
@@ -92,8 +94,9 @@ executor.submit(get_movie_principal_stars, tconst): "stars",
     # Adiciona dados básicos do filme
     movie_data.update({
         "tconst": tconst,
+        "imdb_url": f"https://www.imdb.com/title/{tconst}/",
         "created_at": datetime.now().isoformat(),
-        "references": []  # Array vazio para armazenar referências
+        "references": [],
     })
 
     # Remove campos vazios ou nulos para economizar espaço

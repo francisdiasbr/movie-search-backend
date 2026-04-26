@@ -213,6 +213,43 @@ def get_movie_title(tconst):
         return None
 
 
+def get_movie_poster(tconst):
+    soup = fetch_soup(tconst)
+    if not soup:
+        return None
+
+    # 1. data-testid no container do hero poster
+    for testid in ("hero-media__poster", "hero__poster"):
+        container = soup.find(attrs={"data-testid": testid})
+        if container:
+            img = container.find("img")
+            if img and img.get("src"):
+                print(f"[SCRAPPER] poster via data-testid={testid}: {img['src'][:60]}")
+                return img["src"]
+
+    # 2. overlay com aria-label contendo "poster" ou "pôster"
+    for overlay in soup.find_all("a", class_="ipc-lockup-overlay"):
+        label = (overlay.get("aria-label") or "").lower()
+        if "poster" in label or "pôster" in label:
+            parent = overlay.find_parent()
+            if parent:
+                img = parent.find("img", class_="ipc-image")
+                if img and img.get("src"):
+                    print(f"[SCRAPPER] poster via aria-label: {img['src'][:60]}")
+                    return img["src"]
+
+    # 3. primeira ipc-image dentro de ipc-poster
+    poster_div = soup.find(class_="ipc-poster")
+    if poster_div:
+        img = poster_div.find("img", class_="ipc-image")
+        if img and img.get("src"):
+            print(f"[SCRAPPER] poster via ipc-poster: {img['src'][:60]}")
+            return img["src"]
+
+    print(f"[SCRAPPER] poster não encontrado para {tconst}")
+    return None
+
+
 def get_movie_year(tconst):
     soup = fetch_soup(tconst)
     if soup:
