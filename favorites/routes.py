@@ -64,7 +64,7 @@ class FavoriteMovieSearch(Resource):
         return get_favorited_movies(
             filters=request_data.get("filters", {}),
             page=request_data.get("page", 1),
-            page_size=request_data.get("page_size", 10),
+            page_size=request_data.get("page_size", 0),
             search_term=request_data.get("search_term", ""),
         )
 
@@ -99,6 +99,7 @@ class FavoriteMovie(Resource):
             request_data.get("wiki"),
             request_data.get("watched"),
             request_data.get("references"),
+            request_data.get("magnet_link"),
         )
 
     @api.doc("delete_favorite_movie")

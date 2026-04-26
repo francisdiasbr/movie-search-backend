@@ -1,19 +1,44 @@
 from bs4 import BeautifulSoup
 import requests
+import threading
+from playwright.sync_api import sync_playwright
 
 BASE_URL = "https://www.imdb.com/title/"
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-    "Accept-Language": "en-US,en;q=0.9",
-}
+
+_thread_local = threading.local()
+
+
+def _get_browser():
+    if not hasattr(_thread_local, "browser") or _thread_local.browser is None:
+        _thread_local.pw = sync_playwright().start()
+        _thread_local.browser = _thread_local.pw.chromium.launch(headless=True)
+    return _thread_local.browser
 
 
 def fetch_soup(tconst, path=""):
     url = f"{BASE_URL}{tconst}/{path}"
-    response = requests.get(url, headers=HEADERS)
-    if response.status_code == 200:
-        return BeautifulSoup(response.text, "html.parser")
-    return None
+    context = None
+    try:
+        browser = _get_browser()
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        )
+        page = context.new_page()
+        page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_selector("[data-testid='hero__pageTitle'], [data-testid='title-details-section'], h1", timeout=15000)
+        html = page.content()
+        print(f"[SCRAPPER] {url} → playwright OK")
+        return BeautifulSoup(html, "html.parser")
+    except Exception as e:
+        print(f"[SCRAPPER] Erro ao carregar {url}: {e}")
+        _thread_local.browser = None
+        return None
+    finally:
+        if context:
+            try:
+                context.close()
+            except Exception:
+                pass
 
 
 def get_wikipedia_url(movie_title):

@@ -28,13 +28,15 @@ def get_mongo_client(use_atlas=True):
     # Cria novo cliente apenas se não existir
     try:
         if use_atlas:
-            _mongo_client_atlas = MongoClient(MONGODB_CONNECTION_STRING_ATLAS)
-            _mongo_client_atlas.server_info()  # Testa conexão
+            client = MongoClient(MONGODB_CONNECTION_STRING_ATLAS)
+            client.server_info()  # Testa conexão
+            _mongo_client_atlas = client
             print(f"Conexão com MongoDB {connection_type} estabelecida com sucesso (reutilizável)")
             return _mongo_client_atlas
         else:
-            _mongo_client_local = MongoClient(MONGODB_CONNECTION_STRING_LOCAL)
-            _mongo_client_local.server_info()  # Testa conexão
+            client = MongoClient(MONGODB_CONNECTION_STRING_LOCAL)
+            client.server_info()  # Testa conexão
+            _mongo_client_local = client
             print(f"Conexão com MongoDB {connection_type} estabelecida com sucesso (reutilizável)")
             return _mongo_client_local
     except Exception as e:
@@ -62,6 +64,9 @@ def get_mongo_collection(name, use_atlas=True):
 
 # Configurações da OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Configurações da Anthropic
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 # Configurações do Google Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")

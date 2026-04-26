@@ -1,6 +1,5 @@
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
-from langchain_community.callbacks import get_openai_callback
 from pydantic import BaseModel, Field
 import time
 from datetime import datetime
@@ -84,7 +83,7 @@ class BilingualReview(BaseModel):
 
 def generate_blog_post(api_key, movie_data, model, temperature=0.6, max_tokens=3000):
     start_time = time.perf_counter()
-    llm = ChatOpenAI(
+    llm = ChatAnthropic(
         api_key=api_key, model=model, temperature=temperature, max_tokens=max_tokens
     )
 

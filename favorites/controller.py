@@ -35,10 +35,14 @@ def favorite_movie(tconst):
     collection_atlas = get_mongo_collection("favoritelist", use_atlas=True)
     collection_local = get_mongo_collection("favoritelist", use_atlas=False)
 
+    if collection_atlas is None:
+        print("[FAVORITE] Erro: coleção Atlas indisponível")
+        return {"status": 503, "message": "Banco de dados Atlas indisponível"}, 503
+
     # Verificar em ambas as coleções
     print("[FAVORITE] Verificando se o filme já existe nas coleções...")
     existing_movie_atlas = collection_atlas.find_one({"tconst": tconst})
-    existing_movie_local = collection_local.find_one({"tconst": tconst})
+    existing_movie_local = collection_local.find_one({"tconst": tconst}) if collection_local is not None else None
 
     if existing_movie_atlas or existing_movie_local:
         print(f"[FAVORITE] Filme {tconst} já existe na lista de favoritos")
@@ -100,13 +104,12 @@ def favorite_movie(tconst):
 
     try:
         print("[FAVORITE] Iniciando inserção nas coleções...")
-        # Crie uma cópia para cada inserção
-        movie_data_atlas = movie_data.copy()
-        movie_data_local = movie_data.copy()
-        result_atlas = collection_atlas.insert_one(movie_data_atlas)
-        result_local = collection_local.insert_one(movie_data_local)
-        # Adicione o _id retornado pelo Atlas como string na resposta
+        result_atlas = collection_atlas.insert_one(movie_data.copy())
         movie_data["_id"] = str(result_atlas.inserted_id)
+        if collection_local is not None:
+            collection_local.insert_one(movie_data.copy())
+        else:
+            print("[FAVORITE] MongoDB local indisponível, inserido apenas no Atlas")
         print(f"[FAVORITE] Filme inserido com sucesso. ID: {movie_data['_id']}")
         return {"data": movie_data}, 201
     except Exception as e:
@@ -134,12 +137,12 @@ def get_favorited_movie(tconst):
 
 
 # Edita um filme favoritado
-def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, references=None):
+def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, references=None, magnet_link=None):
     collection = get_mongo_collection("favoritelist")
     update_data = {}
 
     print(f"[EDIT] Iniciando edição do filme tconst: {tconst}")
-    print(f"[EDIT] Dados recebidos - soundtrack: {soundtrack}, wiki: {wiki}, watched: {watched}, references: {references}")
+    print(f"[EDIT] Dados recebidos - soundtrack: {soundtrack}, wiki: {wiki}, watched: {watched}, references: {references}, magnet_link: {magnet_link}")
 
     # Busca o filme atual para manter as referências existentes
     current_movie = collection.find_one({"tconst": tconst})
@@ -191,6 +194,8 @@ def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, refer
         update_data["wiki"] = wiki
     if watched is not None:
         update_data["watched"] = watched
+    if magnet_link is not None:
+        update_data["magnet_link"] = magnet_link
 
     if not update_data:
         print("[EDIT] Nenhum campo para atualizar")
@@ -251,7 +256,7 @@ def delete_favorited_movie(tconst):
 
 # Recupera os filmes favoritados
 def get_favorited_movies(
-    filters={}, sorters=["_id", -1], page=1, page_size=10, search_term=""
+    filters={}, sorters=["_id", -1], page=1, page_size=0, search_term=""
 ):
     collection = get_mongo_collection("favoritelist")
 
@@ -283,13 +288,11 @@ def get_favorited_movies(
 
     try:
         total_documents = collection.count_documents(filters)
-        skip = (page - 1) * page_size
-        items = list(
-            collection.find(filters)
-            .sort(sorters[0], sorters[1])
-            .skip(skip)
-            .limit(page_size)
-        )
+        skip = (page - 1) * page_size if page_size else 0
+        query = collection.find(filters).sort(sorters[0], sorters[1]).skip(skip)
+        if page_size:
+            query = query.limit(page_size)
+        items = list(query)
 
         for item in items:
             item["_id"] = str(item["_id"])

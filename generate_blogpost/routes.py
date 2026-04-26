@@ -2,7 +2,7 @@ from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
 
 
-from config import OPENAI_API_KEY
+from config import ANTHROPIC_API_KEY
 from generate_blogpost.controller import (
     create_and_save_blog_post,
     get_blog_post,
@@ -135,8 +135,8 @@ class MovieBlogPost(Resource):
     @api.marshal_with(blog_post_model)
     def post(self, tconst):
         """Cria e salva uma postagem de blog para um filme favoritado"""
-        model = "gpt-4o"
-        return create_and_save_blog_post(tconst, OPENAI_API_KEY, model)
+        model = "claude-opus-4-7"
+        return create_and_save_blog_post(tconst, ANTHROPIC_API_KEY, model)
 
     @api.doc("update_blog_post")
     @api.expect(blog_post_update_model)

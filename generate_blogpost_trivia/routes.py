@@ -2,7 +2,7 @@ from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
 
 
-from config import OPENAI_API_KEY
+from config import ANTHROPIC_API_KEY
 from generate_blogpost_trivia.controller import (
     create_and_save_blog_post_trivia,
     get_blog_post_trivia,
@@ -85,8 +85,8 @@ class MovieBlogPostTrivia(Resource):
     @api.marshal_with(blog_post_trivia_model)
     def post(self, tconst):
         """Cria e salva uma postagem de blog para um filme favoritado"""
-        model = "gpt-4o"
-        return create_and_save_blog_post_trivia(tconst, OPENAI_API_KEY, model)
+        model = "claude-opus-4-7"
+        return create_and_save_blog_post_trivia(tconst, ANTHROPIC_API_KEY, model)
 
     @api.doc("update_blog_post_trivia")
     @api.response(200, "Postagem atualizada com sucesso")

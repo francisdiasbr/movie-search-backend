@@ -1,6 +1,5 @@
-from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_community.callbacks import get_openai_callback
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import time
@@ -29,7 +28,7 @@ def generate_blog_post_trivia(
     api_key, movie_data, model, temperature=0.5, max_tokens=3000
 ):
     start_time = time.perf_counter()  # Início da medição de tempo
-    llm = ChatOpenAI(
+    llm = ChatAnthropic(
         api_key=api_key, model=model, temperature=temperature, max_tokens=max_tokens
     )
 
@@ -72,7 +71,4 @@ def generate_blog_post_trivia(
 
 
 def llm_decorator(func, obj):
-    with get_openai_callback() as cb:
-        invoked = func.invoke(obj)
-        print("\ncallback\n", cb, "\n")
-    return invoked
+    return func.invoke(obj)
