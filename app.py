@@ -6,9 +6,10 @@ from flask_restx import Api, Resource, Namespace
 import config
 from favorites.routes import favorites_bp
 from keywords.routes import keywords_bp
-from write_review.routes import write_review_bp
-from images.routes import images_bp
 from main_images.routes import main_images_bp
+from images.routes import images_bp
+from search.search import search_bp
+from write_review.routes import write_review_bp
 
 # Flask instance
 app = Flask(__name__)
@@ -83,17 +84,19 @@ def list_routes():
 
 # register blueprints
 app.register_blueprint(favorites_bp)
-app.register_blueprint(keywords_bp)
-app.register_blueprint(write_review_bp)
 app.register_blueprint(images_bp)
+app.register_blueprint(keywords_bp)
 app.register_blueprint(main_images_bp)
+app.register_blueprint(search_bp)
+app.register_blueprint(write_review_bp)
 
 # Add namespaces
 api.add_namespace(favorites_bp.api)
-api.add_namespace(keywords_bp.api)
-api.add_namespace(write_review_bp.api)
 api.add_namespace(images_bp.api)
+api.add_namespace(keywords_bp.api)
 api.add_namespace(main_images_bp.api)
+api.add_namespace(search_bp.api)
+api.add_namespace(write_review_bp.api)
 
 # main function to start the server
 if __name__ == "__main__":
