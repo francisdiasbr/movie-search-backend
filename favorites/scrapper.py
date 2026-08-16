@@ -1,45 +1,158 @@
 from bs4 import BeautifulSoup
+import atexit
+import os
+import queue
+import random
 import requests
 import threading
+import time
 from playwright.sync_api import sync_playwright
 
 BASE_URL = "https://www.imdb.com/title/"
 
-_thread_local = threading.local()
+# Perfil do Chromium reaproveitado entre execuções. Guarda os cookies do IMDB,
+# incluindo o token do AWS WAF obtido na verificação manual (ver imdb_verify.py).
+PROFILE_DIR = os.getenv(
+    "IMDB_PROFILE_DIR", os.path.expanduser("~/.cache/movie-search/imdb-profile")
+)
+HEADLESS = os.getenv("IMDB_HEADLESS", "1") != "0"
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
+# Intervalo mínimo entre dois carregamentos de página, com jitter.
+MIN_INTERVAL = float(os.getenv("IMDB_MIN_INTERVAL", "1.5"))
+
+# Tempo de vida da soup em cache. Cobre com folga um favorite_movie inteiro e
+# expira sozinho, evitando servir página velha em cadastros posteriores.
+CACHE_TTL = float(os.getenv("IMDB_CACHE_TTL", "600"))
+
+# Depois de um bloqueio do WAF não adianta insistir: as outras 11 funções do
+# mesmo cadastro desistem na hora em vez de baterem no captcha uma a uma.
+WAF_COOLDOWN = float(os.getenv("IMDB_WAF_COOLDOWN", "300"))
+
+_cache = {}
+_cache_lock = threading.Lock()
+_blocked_until = 0.0
+
+# Toda navegação passa por uma única thread dona do Playwright: a API síncrona
+# não pode ser usada de outra thread além da que a criou, e o Chromium tranca o
+# diretório de perfil, então não dá para abrir o mesmo perfil em paralelo.
+_jobs = queue.Queue()
+_worker = None
+_worker_lock = threading.Lock()
 
 
-def _get_browser():
-    if not hasattr(_thread_local, "browser") or _thread_local.browser is None:
-        _thread_local.pw = sync_playwright().start()
-        _thread_local.browser = _thread_local.pw.chromium.launch(headless=True)
-    return _thread_local.browser
+def _browser_loop():
+    pw = sync_playwright().start()
+    context = pw.chromium.launch_persistent_context(
+        PROFILE_DIR,
+        headless=HEADLESS,
+        locale="en-US",
+        user_agent=USER_AGENT,
+        viewport={"width": 1280, "height": 800},
+    )
+    last_request = 0.0
+    try:
+        while True:
+            job = _jobs.get()
+            if job is None:
+                break
+            url, box, done = job
+            try:
+                wait = MIN_INTERVAL - (time.monotonic() - last_request)
+                if wait > 0:
+                    time.sleep(wait + random.uniform(0, 0.5))
+                page = context.new_page()
+                try:
+                    page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                    page.wait_for_selector(
+                        "[data-testid='hero__pageTitle'], [data-testid='title-details-section'], h1",
+                        timeout=15000,
+                    )
+                    box["html"] = page.content()
+                finally:
+                    last_request = time.monotonic()
+                    page.close()
+            except Exception as e:
+                box["error"] = e
+            finally:
+                done.set()
+    finally:
+        try:
+            context.close()
+        finally:
+            pw.stop()
+
+
+def _ensure_worker():
+    global _worker
+    with _worker_lock:
+        if _worker is None or not _worker.is_alive():
+            os.makedirs(PROFILE_DIR, exist_ok=True)
+            _worker = threading.Thread(target=_browser_loop, daemon=True)
+            _worker.start()
+            atexit.register(_shutdown)
+
+
+def _shutdown():
+    _jobs.put(None)
+
+
+def _load_html(url):
+    _ensure_worker()
+    box, done = {}, threading.Event()
+    _jobs.put((url, box, done))
+    done.wait(90)
+    if "error" in box:
+        raise box["error"]
+    return box.get("html")
+
+
+def _is_waf_challenge(soup):
+    title = soup.title.string if soup.title else ""
+    return "human verification" in (title or "").lower()
+
+
+def clear_soup_cache():
+    global _blocked_until
+    with _cache_lock:
+        _cache.clear()
+        _blocked_until = 0.0
 
 
 def fetch_soup(tconst, path=""):
+    global _blocked_until
     url = f"{BASE_URL}{tconst}/{path}"
-    context = None
+    key = (tconst, path)
+    now = time.monotonic()
+
+    with _cache_lock:
+        hit = _cache.get(key)
+        if hit and now - hit[0] < CACHE_TTL:
+            return hit[1]
+        if now < _blocked_until:
+            return None
+
     try:
-        browser = _get_browser()
-        context = browser.new_context(
-            locale="en-US",
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        )
-        page = context.new_page()
-        page.goto(url, wait_until="domcontentloaded", timeout=30000)
-        page.wait_for_selector("[data-testid='hero__pageTitle'], [data-testid='title-details-section'], h1", timeout=15000)
-        html = page.content()
+        html = _load_html(url)
+        if html is None:
+            print(f"[SCRAPPER] Timeout aguardando {url}")
+            return None
+        soup = BeautifulSoup(html, "html.parser")
+        if _is_waf_challenge(soup):
+            with _cache_lock:
+                _blocked_until = time.monotonic() + WAF_COOLDOWN
+            print(
+                f"[SCRAPPER] {url} → bloqueado pelo AWS WAF do IMDB. "
+                f"Rode 'python imdb_verify.py' para validar a sessão manualmente."
+            )
+            return None
         print(f"[SCRAPPER] {url} → playwright OK")
-        return BeautifulSoup(html, "html.parser")
+        with _cache_lock:
+            _cache[key] = (time.monotonic(), soup)
+        return soup
     except Exception as e:
         print(f"[SCRAPPER] Erro ao carregar {url}: {e}")
-        _thread_local.browser = None
         return None
-    finally:
-        if context:
-            try:
-                context.close()
-            except Exception:
-                pass
 
 
 def get_wikipedia_url(movie_title):
