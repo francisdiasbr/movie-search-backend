@@ -2,7 +2,6 @@ from flask import request
 import logging
 import requests
 from config import get_mongo_collection
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 from datetime import datetime
 
@@ -49,22 +48,24 @@ SCRAPERS = {
 
 
 def collect_movie_data(tconst, title):
-    """Runs every scraper in parallel, keeping only the fields that resolved."""
+    """Runs every scraper, keeping only the fields that resolved.
+
+    Sequential on purpose. Every IMDB page load is serialized by the browser
+    thread anyway, and running the scrapers concurrently made them all miss the
+    soup cache at once and queue the same URL again - 7 page loads instead of 4,
+    and twice the wall clock.
+    """
     data = {}
+    # The only scraper keyed by title instead of tconst.
+    scrapers = {**SCRAPERS, "wiki": lambda _: get_wikipedia_url(title)}
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        futures = {executor.submit(fn, tconst): field for field, fn in SCRAPERS.items()}
-        # The only scraper keyed by title instead of tconst.
-        futures[executor.submit(get_wikipedia_url, title)] = "wiki"
-
-        for future in as_completed(futures):
-            field = futures[future]
-            try:
-                value = future.result()
-                if value is not None and value != "":
-                    data[field] = value
-            except Exception as e:
-                logger.warning("Could not fetch %s for %s: %s", field, tconst, e)
+    for field, scraper in scrapers.items():
+        try:
+            value = scraper(tconst)
+            if value is not None and value != "":
+                data[field] = value
+        except Exception as e:
+            logger.warning("Could not fetch %s for %s: %s", field, tconst, e)
 
     # Every scraper is done with the IMDB pages by now.
     clear_soup_cache()

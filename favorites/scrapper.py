@@ -13,32 +13,29 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.imdb.com/title/"
 
-# Perfil do Chromium reaproveitado entre execuções. Guarda os cookies do IMDB,
-# incluindo o token do AWS WAF obtido na verificação manual (ver imdb_verify.py).
-PROFILE_DIR = os.getenv(
-    "IMDB_PROFILE_DIR", os.path.expanduser("~/.cache/movie-search/imdb-profile")
-)
-HEADLESS = os.getenv("IMDB_HEADLESS", "1") != "0"
+# Chromium profile reused across runs. It holds the IMDB cookies, including the
+# AWS WAF token from the manual verification (see imdb_verify.py).
+PROFILE_DIR = os.path.expanduser("~/.cache/movie-search/imdb-profile")
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
-# Intervalo mínimo entre dois carregamentos de página, com jitter.
-MIN_INTERVAL = float(os.getenv("IMDB_MIN_INTERVAL", "1.5"))
+# The only knob worth flipping by hand: IMDB_HEADLESS=0 shows the browser while
+# debugging a scraper.
+HEADLESS = os.getenv("IMDB_HEADLESS", "1") != "0"
 
-# Tempo de vida da soup em cache. Cobre com folga um favorite_movie inteiro e
-# expira sozinho, evitando servir página velha em cadastros posteriores.
-CACHE_TTL = float(os.getenv("IMDB_CACHE_TTL", "600"))
+# Minimum gap between two page loads, plus jitter.
+MIN_INTERVAL = 1.5
+
+# How long a soup stays cached. Covers a whole favorite_movie with room to
+# spare and expires on its own.
+CACHE_TTL = 600
 
 # WAF challenges are usually transient, so a page is retried before being given
-# up on. Once every attempt is challenged the session is likely really stale,
-# and the cooldown makes the remaining scrapers of the same request fail fast
-# instead of hitting the captcha one by one.
-WAF_ATTEMPTS = int(os.getenv("IMDB_WAF_ATTEMPTS", "3"))
-WAF_RETRY_DELAY = float(os.getenv("IMDB_WAF_RETRY_DELAY", "3"))
-WAF_COOLDOWN = float(os.getenv("IMDB_WAF_COOLDOWN", "300"))
+# up on.
+WAF_ATTEMPTS = 3
+WAF_RETRY_DELAY = 3
 
 _cache = {}
 _cache_lock = threading.Lock()
-_blocked_until = 0.0
 
 # Toda navegação passa por uma única thread dona do Playwright: a API síncrona
 # não pode ser usada de outra thread além da que a criou, e o Chromium tranca o
@@ -120,14 +117,11 @@ def _is_waf_challenge(soup):
 
 
 def clear_soup_cache():
-    global _blocked_until
     with _cache_lock:
         _cache.clear()
-        _blocked_until = 0.0
 
 
 def fetch_soup(tconst, path=""):
-    global _blocked_until
     url = f"{BASE_URL}{tconst}/{path}"
     key = (tconst, path)
     now = time.monotonic()
@@ -136,8 +130,6 @@ def fetch_soup(tconst, path=""):
         hit = _cache.get(key)
         if hit and now - hit[0] < CACHE_TTL:
             return hit[1]
-        if now < _blocked_until:
-            return None
 
     for attempt in range(1, WAF_ATTEMPTS + 1):
         try:
@@ -149,16 +141,13 @@ def fetch_soup(tconst, path=""):
             soup = BeautifulSoup(html, "html.parser")
             if _is_waf_challenge(soup):
                 # The challenge is usually transient: the WAF token in the
-                # profile stays valid and a retry goes through. Only give up -
-                # and open the cooldown - once every attempt was challenged.
+                # profile stays valid and a retry goes through.
                 if attempt < WAF_ATTEMPTS:
                     logger.warning(
                         "WAF challenge on %s, retrying (%d/%d)", url, attempt, WAF_ATTEMPTS
                     )
                     time.sleep(WAF_RETRY_DELAY * attempt)
                     continue
-                with _cache_lock:
-                    _blocked_until = time.monotonic() + WAF_COOLDOWN
                 logger.error(
                     "%s blocked by IMDB's AWS WAF after %d attempts. "
                     "Run 'python imdb_verify.py' to renew the session.",
@@ -177,14 +166,14 @@ def fetch_soup(tconst, path=""):
 
 
 def get_wikipedia_url(movie_title):
-    base_url = "https://en.wikipedia.org/wiki/"
-    movie_title_formatted = movie_title.replace(" ", "_")
-    url = f"{base_url}{movie_title_formatted}"
-    response = requests.get(url, headers=HEADERS)
+    url = f"https://en.wikipedia.org/wiki/{movie_title.replace(' ', '_')}"
+    try:
+        response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=10)
+    except requests.RequestException as e:
+        logger.warning("Could not reach Wikipedia for %s: %s", movie_title, e)
+        return None
 
-    if response.status_code == 200:
-        return url
-    return "Wikipedia page not found"
+    return url if response.status_code == 200 else None
 
 
 def get_movie_sm_plot(tconst):

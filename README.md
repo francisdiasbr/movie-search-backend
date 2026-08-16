@@ -91,14 +91,10 @@ Run 'python imdb_verify.py' to renew the session.
 
 O script para o backend, testa a sessão e — só se estiver bloqueada — abre uma
 janela do navegador para você resolver a verificação manualmente. Depois sobe o
-backend de novo.
+backend de novo. É o mesmo comando para o dia a dia e para quando dá problema.
 
-```bash
-./verify_imdb.sh              # testa e renova só se precisar
-./verify_imdb.sh --force      # abre a janela de verificação de qualquer jeito
-./verify_imdb.sh --no-start   # não reinicia o backend ao final
-./verify_imdb.sh tt0017136    # usa outro título no teste
-```
+Se quiser só a janela de verificação, sem mexer no servidor:
+`python imdb_verify.py`.
 
 > ⚠️ O Chromium tranca o diretório de perfil: o backend **precisa estar parado**
 > enquanto a verificação acontece. O script cuida disso — rodar o
