@@ -1,74 +1,13 @@
 import logging
 
-from config import get_mongo_collection
 from openai import OpenAI
-from pydantic import BaseModel, Field, constr, conint
-from typing import List
-from config import OPENAI_API_KEY
+
+from config import get_mongo_collection, OPENAI_API_KEY
+from keywords.schemas import MovieSuggestions
 
 logger = logging.getLogger(__name__)
 
 COLLECTION_NAME = "favorites_keywords"
-
-
-class MovieSuggestion(BaseModel):
-    """Modelo para sugestão de filme"""
-
-    title: constr(min_length=1, max_length=200) = Field(
-        description="Título do filme", examples=["O Poderoso Chefão", "Fight Club"]
-    )
-    year: conint(ge=1888, le=2024) = Field(
-        description="Ano de lançamento do filme", examples=[1972, 1999]
-    )
-    tconst: constr(pattern=r"^tt\d{7,8}$") = Field(
-        description="IMDb ID (tconst) do filme", examples=["tt0068646", "tt0137523"]
-    )
-    description: constr(min_length=50, max_length=500) = Field(
-        description="Breve descrição do filme (2-3 linhas)",
-        examples=[
-            "A saga da família Corleone, uma poderosa dinastia mafiosa italiana nos Estados Unidos, liderada por Don Vito Corleone."
-        ],
-    )
-    relevance: constr(min_length=50, max_length=500) = Field(
-        description="Explicação de como o filme se relaciona com as palavras-chave",
-        examples=[
-            "Dirigido por Francis Ford Coppola, este filme é um clássico absoluto sobre a máfia italiana, explorando temas de poder, família e crime."
-        ],
-    )
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "title": "O Poderoso Chefão",
-                "year": 1972,
-                "tconst": "tt0068646",
-                "description": "A saga da família Corleone, uma poderosa dinastia mafiosa italiana nos Estados Unidos, liderada por Don Vito Corleone.",
-                "relevance": "Dirigido por Francis Ford Coppola, este filme é um clássico absoluto sobre a máfia italiana, explorando temas de poder, família e crime.",
-            }
-        }
-
-
-class MovieSuggestions(BaseModel):
-    """Modelo para lista de sugestões de filmes"""
-
-    movies: List[MovieSuggestion] = Field(
-        description="Lista de sugestões de filmes", min_items=1, max_items=5
-    )
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "movies": [
-                    {
-                        "title": "O Poderoso Chefão",
-                        "year": 1972,
-                        "tconst": "tt0068646",
-                        "description": "A saga da família Corleone, uma poderosa dinastia mafiosa italiana nos Estados Unidos, liderada por Don Vito Corleone.",
-                        "relevance": "Dirigido por Francis Ford Coppola, este filme é um clássico absoluto sobre a máfia italiana, explorando temas de poder, família e crime.",
-                    }
-                ]
-            }
-        }
 
 
 def add_keyword(keyword):
