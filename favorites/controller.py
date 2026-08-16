@@ -258,6 +258,17 @@ def delete_favorited_movie(tconst):
         return {"data": "Failed to delete listed movie"}, 500
 
 
+# Campos que a listagem do frontend realmente usa. O documento completo carrega
+# trivia, quote, plot e plot_keywords, que só fazem sentido na tela de detalhe -
+# essa busca o filme inteiro pelo GET /favorites/<tconst>.
+LIST_PROJECTION = {
+    "poster_url": 1,
+    "primaryTitle": 1,
+    "tconst": 1,
+    "watched": 1,
+}
+
+
 # Recupera os filmes favoritados
 def get_favorited_movies(
     filters={}, sorters=["_id", -1], page=1, page_size=0, search_term=""
@@ -293,7 +304,7 @@ def get_favorited_movies(
     try:
         total_documents = collection.count_documents(filters)
         skip = (page - 1) * page_size if page_size else 0
-        query = collection.find(filters).sort(sorters[0], sorters[1]).skip(skip)
+        query = collection.find(filters, LIST_PROJECTION).sort(sorters[0], sorters[1]).skip(skip)
         if page_size:
             query = query.limit(page_size)
         items = list(query)
