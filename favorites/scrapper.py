@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import atexit
+import logging
 import os
 import queue
 import random
@@ -7,6 +8,8 @@ import requests
 import threading
 import time
 from playwright.sync_api import sync_playwright
+
+logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.imdb.com/title/"
 
@@ -25,8 +28,12 @@ MIN_INTERVAL = float(os.getenv("IMDB_MIN_INTERVAL", "1.5"))
 # expira sozinho, evitando servir página velha em cadastros posteriores.
 CACHE_TTL = float(os.getenv("IMDB_CACHE_TTL", "600"))
 
-# Depois de um bloqueio do WAF não adianta insistir: as outras 11 funções do
-# mesmo cadastro desistem na hora em vez de baterem no captcha uma a uma.
+# WAF challenges are usually transient, so a page is retried before being given
+# up on. Once every attempt is challenged the session is likely really stale,
+# and the cooldown makes the remaining scrapers of the same request fail fast
+# instead of hitting the captcha one by one.
+WAF_ATTEMPTS = int(os.getenv("IMDB_WAF_ATTEMPTS", "3"))
+WAF_RETRY_DELAY = float(os.getenv("IMDB_WAF_RETRY_DELAY", "3"))
 WAF_COOLDOWN = float(os.getenv("IMDB_WAF_COOLDOWN", "300"))
 
 _cache = {}
@@ -132,27 +139,41 @@ def fetch_soup(tconst, path=""):
         if now < _blocked_until:
             return None
 
-    try:
-        html = _load_html(url)
-        if html is None:
-            print(f"[SCRAPPER] Timeout aguardando {url}")
-            return None
-        soup = BeautifulSoup(html, "html.parser")
-        if _is_waf_challenge(soup):
+    for attempt in range(1, WAF_ATTEMPTS + 1):
+        try:
+            html = _load_html(url)
+            if html is None:
+                logger.warning("Timed out waiting for %s", url)
+                return None
+
+            soup = BeautifulSoup(html, "html.parser")
+            if _is_waf_challenge(soup):
+                # The challenge is usually transient: the WAF token in the
+                # profile stays valid and a retry goes through. Only give up -
+                # and open the cooldown - once every attempt was challenged.
+                if attempt < WAF_ATTEMPTS:
+                    logger.warning(
+                        "WAF challenge on %s, retrying (%d/%d)", url, attempt, WAF_ATTEMPTS
+                    )
+                    time.sleep(WAF_RETRY_DELAY * attempt)
+                    continue
+                with _cache_lock:
+                    _blocked_until = time.monotonic() + WAF_COOLDOWN
+                logger.error(
+                    "%s blocked by IMDB's AWS WAF after %d attempts. "
+                    "Run 'python imdb_verify.py' to renew the session.",
+                    url,
+                    WAF_ATTEMPTS,
+                )
+                return None
+
+            logger.info("Loaded %s", url)
             with _cache_lock:
-                _blocked_until = time.monotonic() + WAF_COOLDOWN
-            print(
-                f"[SCRAPPER] {url} → bloqueado pelo AWS WAF do IMDB. "
-                f"Rode 'python imdb_verify.py' para validar a sessão manualmente."
-            )
+                _cache[key] = (time.monotonic(), soup)
+            return soup
+        except Exception as e:
+            logger.error("Could not load %s: %s", url, e)
             return None
-        print(f"[SCRAPPER] {url} → playwright OK")
-        with _cache_lock:
-            _cache[key] = (time.monotonic(), soup)
-        return soup
-    except Exception as e:
-        print(f"[SCRAPPER] Erro ao carregar {url}: {e}")
-        return None
 
 
 def get_wikipedia_url(movie_title):
