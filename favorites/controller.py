@@ -1,12 +1,12 @@
-from flask import request, jsonify
-import math
+from flask import request
 import requests
-from config import get_mongo_collection, RAPIDAPI_API_KEY
+from config import get_mongo_collection
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
 from datetime import datetime
 
 from favorites.scrapper import (
+    clear_soup_cache,
     get_director,
     get_movie_country,
     get_movie_genres,
@@ -89,6 +89,9 @@ def favorite_movie(tconst):
                     print(f"[FAVORITE] Nenhum dado obtido para {func_name}")
             except Exception as e:
                 print(f"[FAVORITE] Erro ao obter {func_name}: {e}")
+
+    # As páginas do IMDB já foram consumidas por todas as funções acima
+    clear_soup_cache()
 
     print("[FAVORITE] Adicionando dados básicos do filme...")
     # Adiciona dados básicos do filme

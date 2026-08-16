@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
 
 from write_review.controller import (

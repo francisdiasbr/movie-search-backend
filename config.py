@@ -65,21 +65,8 @@ def get_mongo_collection(name, use_atlas=True):
 # Configurações da OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Configurações da Anthropic
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-
-# Configurações do Google Gemini
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# Configurações da Serper API
-SERPER_API_KEY = os.getenv("SERPER_API_KEY")
-
 # Configurações da RapidAPI
 RAPIDAPI_API_KEY = os.getenv("RAPIDAPI_API_KEY")
-
-# Configurações do Spotify
-SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 
 # Verifica se as credenciais AWS estão carregadas
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")

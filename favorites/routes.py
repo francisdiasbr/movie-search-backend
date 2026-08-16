@@ -7,7 +7,6 @@ from favorites.controller import (
     favorite_movie,
     get_favorited_movie,
     get_favorited_movies,
-    get_magnet_link,
 )
 
 favorites_bp = Blueprint("favorites", __name__)
@@ -108,21 +107,6 @@ class FavoriteMovie(Resource):
     def delete(self, tconst):
         """Remove um filme dos favoritos"""
         return delete_favorited_movie(tconst)
-
-
-@api.route("/magnet-link/<string:tconst>")
-class TorrentMagnet(Resource):
-    @api.doc("get_magnet_link")
-    @api.response(200, "Sucesso")
-    @api.response(404, "Filme não encontrado")
-    def get(self, tconst):
-        """Obtém o link magnet para o filme especificado"""
-        magnet_link = get_magnet_link(tconst)
-        
-        if magnet_link:
-            return {"magnet_link": magnet_link}, 200
-        else:
-            return {"message": "Magnet link não encontrado para este filme"}, 404
 
 
 favorites_bp.api = api

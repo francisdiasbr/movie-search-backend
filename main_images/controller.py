@@ -1,10 +1,7 @@
-from flask import request, jsonify
 from datetime import datetime
-from bson import ObjectId
 import boto3
 import re
 from botocore.exceptions import ClientError
-from urllib.parse import quote_plus, quote
 
 from config import get_mongo_collection, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 from utils import optimize_image
@@ -49,13 +46,6 @@ def save_image_metadata(tconst, filename, sequential_id, subtitle_en="", subtitl
     except Exception as e:
         print(f"Erro ao salvar metadados da imagem: {e}")
         return False
-
-
-def sanitize_filename(filename):
-    """Remove caracteres indesejados e espaços do nome do arquivo."""
-    filename = filename.replace(" ", "_")
-    filename = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename)
-    return filename
 
 
 def upload_image_to_s3(file, bucket_name, tconst, subtitle_en="", subtitle_pt=""):
@@ -122,35 +112,6 @@ def upload_image_to_s3(file, bucket_name, tconst, subtitle_en="", subtitle_pt=""
         return {"status": 500, "message": "Erro ao fazer upload para S3"}, 500
 
 
-def get_image_url(bucket_name, tconst, filename):
-    """Retorna a URL pública direta e as legendas de um arquivo no S3"""
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name="us-east-2",
-    )
-
-    try:
-        object_name = f"{MAIN_PREFIX}/{tconst}/{filename}"
-
-        response = s3_client.get_object_tagging(Bucket=bucket_name, Key=object_name)
-
-        subtitle_en = ""
-        subtitle_pt = ""
-        for tag in response.get("TagSet", []):
-            if tag["Key"] == "subtitle_en":
-                subtitle_en = tag["Value"]
-            elif tag["Key"] == "subtitle_pt":
-                subtitle_pt = tag["Value"]
-
-        url = f"https://{bucket_name}.s3.us-east-2.amazonaws.com/{object_name}"
-        return {"url": url, "filename": filename, "subtitle_en": subtitle_en, "subtitle_pt": subtitle_pt}, 200
-    except Exception as e:
-        print(f"Erro ao buscar legendas: {e}")
-        return {"status": 500, "message": "Erro ao buscar legendas"}, 500
-
-
 def get_all_image_urls(bucket_name, tconst):
     """Retorna todas as URLs públicas diretas e legendas para imagens associadas a um tconst"""
     collection = get_mongo_collection(COLLECTION_NAME)
@@ -182,38 +143,6 @@ def get_all_image_urls(bucket_name, tconst):
     except Exception as e:
         print(f"Erro ao listar imagens: {e}")
         return {"status": 500, "message": "Erro ao listar imagens"}, 500
-
-
-def get_image_by_sequential_id(bucket_name, tconst, sequential_id):
-    """Retorna uma imagem específica pelo ID sequencial"""
-    collection = get_mongo_collection(COLLECTION_NAME)
-    
-    try:
-        # Busca a imagem pelo tconst e ID sequencial
-        image_doc = collection.find_one({
-            "tconst": tconst,
-            "sequential_id": int(sequential_id)
-        })
-        
-        if not image_doc:
-            return {"status": 404, "message": "Imagem não encontrada"}, 404
-        
-        filename = image_doc["filename"]
-        subtitle_en = image_doc.get("subtitle_en", "")
-        subtitle_pt = image_doc.get("subtitle_pt", "")
-        
-        url = f"https://{bucket_name}.s3.us-east-2.amazonaws.com/{MAIN_PREFIX}/{tconst}/{filename}"
-        
-        return {
-            "url": url,
-            "filename": filename,
-            "sequential_id": sequential_id,
-            "subtitle_en": subtitle_en,
-            "subtitle_pt": subtitle_pt,
-        }, 200
-    except Exception as e:
-        print(f"Erro ao buscar imagem: {e}")
-        return {"status": 500, "message": "Erro ao buscar imagem"}, 500
 
 
 def delete_image_from_s3(bucket_name, tconst, filename):
@@ -260,58 +189,3 @@ def sanitize_tag_value(value):
             sanitized = sanitized[:256]
 
     return sanitized
-
-
-def update_image_subtitle(bucket_name, tconst, filename, subtitle_en="", subtitle_pt=""):
-    """Atualiza as legendas de uma imagem específica usando tags do S3 e MongoDB"""
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name="us-east-2",
-    )
-    
-    collection = get_mongo_collection(COLLECTION_NAME)
-
-    try:
-        object_name = f"{MAIN_PREFIX}/{tconst}/{filename}"
-
-        sanitized_subtitle_en = sanitize_tag_value(subtitle_en)
-        sanitized_subtitle_pt = sanitize_tag_value(subtitle_pt)
-
-        # Atualiza tags no S3
-        s3_client.put_object_tagging(
-            Bucket=bucket_name,
-            Key=object_name,
-            Tagging={
-                "TagSet": [
-                    {"Key": "subtitle_en", "Value": sanitized_subtitle_en},
-                    {"Key": "subtitle_pt", "Value": sanitized_subtitle_pt},
-                ]
-            },
-        )
-        
-        # Atualiza metadados no MongoDB
-        collection.update_one(
-            {"tconst": tconst, "filename": filename},
-            {
-                "$set": {
-                    "subtitle_en": sanitized_subtitle_en,
-                    "subtitle_pt": sanitized_subtitle_pt
-                }
-            }
-        )
-
-        url = f"https://{bucket_name}.s3.us-east-2.amazonaws.com/{object_name}"
-        return {
-            "url": url,
-            "filename": filename,
-            "subtitle_en": sanitized_subtitle_en,
-            "subtitle_pt": sanitized_subtitle_pt,
-        }, 200
-
-    except Exception as e:
-        print(f"Erro ao atualizar legendas: {e}")
-        return {"status": 500, "message": "Erro ao atualizar legendas"}, 500
-
-

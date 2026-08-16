@@ -1,4 +1,3 @@
-from flask import request, jsonify
 from config import get_mongo_collection
 from openai import OpenAI
 from pydantic import BaseModel, Field, constr, conint
