@@ -1,4 +1,5 @@
 from flask import request
+import logging
 import requests
 from config import get_mongo_collection
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -24,100 +25,83 @@ from favorites.scrapper import (
 from utils import sanitize_movie_data, sanitize_filters
 from favorites.external_requests import get_magnet_link, get_subtitle_url
 
+logger = logging.getLogger(__name__)
+
+COLLECTION = "favoritelist"
+
+# Scrapers that take a tconst, keyed by the field each one fills in. Adding a
+# new field to a favorite means adding one entry here.
+SCRAPERS = {
+    "country": get_movie_country,
+    "director": get_director,
+    "genres": get_movie_genres,
+    "magnet_link": get_magnet_link,
+    "plot": get_movie_sm_plot,
+    "plot_keywords": get_movie_plot_keywords,
+    "poster_url": get_movie_poster,
+    "quote": get_movie_quote,
+    "stars": get_movie_principal_stars,
+    "startYear": get_movie_year,
+    "subtitle_url": get_subtitle_url,
+    "trivia": get_movie_trivia,
+    "writers": get_writers,
+}
+
+
+def collect_movie_data(tconst, title):
+    """Runs every scraper in parallel, keeping only the fields that resolved."""
+    data = {}
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(fn, tconst): field for field, fn in SCRAPERS.items()}
+        # The only scraper keyed by title instead of tconst.
+        futures[executor.submit(get_wikipedia_url, title)] = "wiki"
+
+        for future in as_completed(futures):
+            field = futures[future]
+            try:
+                value = future.result()
+                if value is not None and value != "":
+                    data[field] = value
+            except Exception as e:
+                logger.warning("Could not fetch %s for %s: %s", field, tconst, e)
+
+    # Every scraper is done with the IMDB pages by now.
+    clear_soup_cache()
+    return data
+
 
 def favorite_movie(tconst):
-    print(f"[FAVORITE] Iniciando processo de favoritar filme com tconst: {tconst}")
-    
     if not tconst:
-        print("[FAVORITE] Erro: tconst é obrigatório")
         return {"data": "tconst is required"}, 400
 
-    collection_atlas = get_mongo_collection("favoritelist", use_atlas=True)
-    collection_local = get_mongo_collection("favoritelist", use_atlas=False)
-
-    if collection_atlas is None:
-        print("[FAVORITE] Erro: coleção Atlas indisponível")
+    collection = get_mongo_collection(COLLECTION)
+    if collection is None:
         return {"status": 503, "message": "Banco de dados Atlas indisponível"}, 503
 
-    # Verificar em ambas as coleções
-    print("[FAVORITE] Verificando se o filme já existe nas coleções...")
-    existing_movie_atlas = collection_atlas.find_one({"tconst": tconst})
-    existing_movie_local = collection_local.find_one({"tconst": tconst}) if collection_local is not None else None
-
-    if existing_movie_atlas or existing_movie_local:
-        print(f"[FAVORITE] Filme {tconst} já existe na lista de favoritos")
+    if collection.find_one({"tconst": tconst}):
         return {"data": "Movie already listed"}, 409
 
-    print("[FAVORITE] Obtendo título do filme...")
-    movie_title = get_movie_title(tconst)
-    if not movie_title:
-        print(f"[FAVORITE] Título do filme {tconst} não encontrado no IMDB")
+    title = get_movie_title(tconst)
+    if not title:
+        logger.warning("Title for %s not found on IMDB", tconst)
         return {"data": "Título do filme não encontrado no IMDB"}, 404
 
-    print(f"[FAVORITE] Título obtido: {movie_title}")
     movie_data = {
-        "primaryTitle": movie_title,
-    }
-
-    print("[FAVORITE] Iniciando coleta de dados em paralelo...")
-    with ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_func = {
-            executor.submit(get_magnet_link, tconst): "magnet_link",
-            executor.submit(get_subtitle_url, tconst): "subtitle_url",
-            executor.submit(get_movie_country, tconst): "country",
-            executor.submit(get_director, tconst): "director",
-            executor.submit(get_movie_genres, tconst): "genres",
-            executor.submit(get_movie_sm_plot, tconst): "plot",
-            executor.submit(get_movie_plot_keywords, tconst): "plot_keywords",
-            executor.submit(get_movie_poster, tconst): "poster_url",
-            executor.submit(get_movie_quote, tconst): "quote",
-            executor.submit(get_movie_principal_stars, tconst): "stars",
-            executor.submit(get_movie_trivia, tconst): "trivia",
-            executor.submit(get_wikipedia_url, movie_title): "wiki",
-            executor.submit(get_writers, tconst): "writers",
-            executor.submit(get_movie_year, tconst): "startYear",
-        }
-
-        for future in as_completed(future_to_func):
-            func_name = future_to_func[future]
-            try:
-                result = future.result()
-                if result is not None:
-                    movie_data[func_name] = result
-                    print(f"[FAVORITE] Dados obtidos com sucesso para {func_name}")
-                else:
-                    print(f"[FAVORITE] Nenhum dado obtido para {func_name}")
-            except Exception as e:
-                print(f"[FAVORITE] Erro ao obter {func_name}: {e}")
-
-    # As páginas do IMDB já foram consumidas por todas as funções acima
-    clear_soup_cache()
-
-    print("[FAVORITE] Adicionando dados básicos do filme...")
-    # Adiciona dados básicos do filme
-    movie_data.update({
+        "primaryTitle": title,
         "tconst": tconst,
         "imdb_url": f"https://www.imdb.com/title/{tconst}/",
         "created_at": datetime.now().isoformat(),
         "references": [],
-    })
-
-    # Remove campos vazios ou nulos para economizar espaço
-    movie_data = {k: v for k, v in movie_data.items() if v is not None and v != ""}
-    print(f"[FAVORITE] Dados finais do filme: {movie_data}")
+        **collect_movie_data(tconst, title),
+    }
 
     try:
-        print("[FAVORITE] Iniciando inserção nas coleções...")
-        result_atlas = collection_atlas.insert_one(movie_data.copy())
-        movie_data["_id"] = str(result_atlas.inserted_id)
-        if collection_local is not None:
-            collection_local.insert_one(movie_data.copy())
-        else:
-            print("[FAVORITE] MongoDB local indisponível, inserido apenas no Atlas")
-        print(f"[FAVORITE] Filme inserido com sucesso. ID: {movie_data['_id']}")
+        movie_data["_id"] = str(collection.insert_one(movie_data).inserted_id)
+        logger.info("Movie %s added as %s", tconst, movie_data["_id"])
         return {"data": movie_data}, 201
     except Exception as e:
-        print(f"[FAVORITE] Erro ao inserir filme: {e}")
+        logger.error("Could not insert %s: %s", tconst, e)
         return {"status": 500, "message": "Erro ao inserir filme"}, 500
 
 
@@ -140,121 +124,80 @@ def get_favorited_movie(tconst):
         return {"data": "Failed to retrieve movie"}, 500
 
 
-# Edita um filme favoritado
-def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, references=None, magnet_link=None):
-    collection = get_mongo_collection("favoritelist")
-    update_data = {}
+# Fields mirrored onto the blogpost of the same movie, when one exists.
+BLOGPOST_MIRROR = {
+    "references": "references",
+    "soundtrack": "spotify_album_url",
+}
 
-    print(f"[EDIT] Iniciando edição do filme tconst: {tconst}")
-    print(f"[EDIT] Dados recebidos - soundtrack: {soundtrack}, wiki: {wiki}, watched: {watched}, references: {references}, magnet_link: {magnet_link}")
 
-    # Busca o filme atual para manter as referências existentes
-    current_movie = collection.find_one({"tconst": tconst})
-    if not current_movie:
-        print(f"[EDIT] Filme {tconst} não encontrado")
-        return {"data": f"Movie {tconst} not found"}, 404
-
-    print(f"[EDIT] Filme encontrado: {current_movie}")
-
-    # Sempre inclui as referências no update_data
-    if references is not None:
-        update_data["references"] = references
-        print(f"[EDIT] Novas referências a serem salvas: {references}")
-        
-        # Atualiza o blogpost se existir
-        try:
-            blogposts_collection = get_mongo_collection("blogposts")
-            blogpost = blogposts_collection.find_one({"tconst": tconst})
-            if blogpost:
-                blogposts_collection.update_one(
-                    {"tconst": tconst},
-                    {"$set": {"references": references}}
-                )
-                print(f"[EDIT] Blogpost atualizado com novas referências: {references}")
-        except Exception as e:
-            print(f"[EDIT] Erro ao atualizar referências no blogpost: {e}")
-    elif "references" in current_movie:
-        # Se não houver novas referências, mantém as existentes
-        current_references = current_movie["references"]
-        update_data["references"] = current_references
-        print(f"[EDIT] Mantendo referências existentes: {current_references}")
-
-    if soundtrack is not None:
-        update_data["soundtrack"] = soundtrack
-        # Atualiza o blogpost se existir
-        try:
-            blogposts_collection = get_mongo_collection("blogposts")
-            blogpost = blogposts_collection.find_one({"tconst": tconst})
-            if blogpost:
-                blogposts_collection.update_one(
-                    {"tconst": tconst},
-                    {"$set": {"spotify_album_url": soundtrack}}
-                )
-                print(f"[EDIT] Blogpost atualizado com nova URL do Spotify: {soundtrack}")
-        except Exception as e:
-            print(f"[EDIT] Erro ao atualizar blogpost: {e}")
-
-    if wiki is not None:
-        update_data["wiki"] = wiki
-    if watched is not None:
-        update_data["watched"] = watched
-    if magnet_link is not None:
-        update_data["magnet_link"] = magnet_link
-
-    if not update_data:
-        print("[EDIT] Nenhum campo para atualizar")
-        return {"data": "No fields to update"}, 400
+def sync_blogpost(tconst, update_data):
+    """Mirrors the edited fields onto the movie's blogpost, if it has one."""
+    mirrored = {
+        blogpost_field: update_data[field]
+        for field, blogpost_field in BLOGPOST_MIRROR.items()
+        if field in update_data
+    }
+    if not mirrored:
+        return
 
     try:
-        print(f"[EDIT] Dados a serem atualizados: {update_data}")
-        result = collection.update_one({"tconst": tconst}, {"$set": update_data})
-        print(f"[EDIT] Resultado da atualização - matched: {result.matched_count}, modified: {result.modified_count}")
-        
-        # Verifica se o filme foi encontrado (matched_count > 0)
-        if result.matched_count > 0:
-            print(f"[EDIT] Filme {tconst} atualizado com sucesso")
-            # Retorna os dados atualizados junto com os dados existentes
-            updated_movie = collection.find_one({"tconst": tconst})
-            updated_movie["_id"] = str(updated_movie["_id"])
-            print(f"[EDIT] Dados atualizados retornados: {updated_movie}")
-            return {"data": updated_movie}, 200
-        else:
-            print(f"[EDIT] Filme {tconst} não encontrado")
-            return {"data": f"Movie {tconst} not found"}, 404
+        collection = get_mongo_collection("blogposts")
+        if collection.find_one({"tconst": tconst}):
+            collection.update_one({"tconst": tconst}, {"$set": mirrored})
+            logger.info("Blogpost of %s synced with %s", tconst, sorted(mirrored))
     except Exception as e:
-        print(f"[EDIT] Erro ao atualizar filme: {e}")
+        logger.error("Could not sync blogpost of %s: %s", tconst, e)
+
+
+# Edita um filme favoritado
+def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, references=None, magnet_link=None):
+    collection = get_mongo_collection(COLLECTION)
+
+    current_movie = collection.find_one({"tconst": tconst})
+    if not current_movie:
+        return {"data": f"Movie {tconst} not found"}, 404
+
+    fields = {
+        "magnet_link": magnet_link,
+        "references": references,
+        "soundtrack": soundtrack,
+        "watched": watched,
+        "wiki": wiki,
+    }
+    update_data = {field: value for field, value in fields.items() if value is not None}
+
+    # Rewrites the existing references when none were sent. It is a no-op on the
+    # document, but it keeps update_data non-empty so a PUT carrying no field
+    # still answers 200 instead of 400.
+    if references is None and "references" in current_movie:
+        update_data["references"] = current_movie["references"]
+
+    if not update_data:
+        return {"data": "No fields to update"}, 400
+
+    sync_blogpost(tconst, update_data)
+
+    try:
+        collection.update_one({"tconst": tconst}, {"$set": update_data})
+        updated_movie = collection.find_one({"tconst": tconst})
+        updated_movie["_id"] = str(updated_movie["_id"])
+        return {"data": updated_movie}, 200
+    except Exception as e:
+        logger.error("Could not update %s: %s", tconst, e)
         return {"data": "Failed to update favorited movie"}, 500
 
 
 # Remove um filme dos favoritos
 def delete_favorited_movie(tconst):
-    collection_atlas = get_mongo_collection("favoritelist", use_atlas=True)
-    collection_local = get_mongo_collection("favoritelist", use_atlas=False)
+    collection = get_mongo_collection(COLLECTION)
 
     try:
-        # Tenta deletar em ambas as coleções
-        result_atlas = collection_atlas.delete_one({"tconst": tconst})
-        result_local = collection_local.delete_one({"tconst": tconst})
-
-        # Verifica se foi deletado em AMBAS as coleções
-        if result_atlas.deleted_count == 1 and result_local.deleted_count == 1:
-            print(f"Filme {tconst} deletado com sucesso de ambas as coleções")
-            return {"data": f"Movie {tconst} deleted"}, 200
-        else:
-            # Se falhou em alguma das coleções, informa qual
-            error_msg = []
-            if result_atlas.deleted_count == 0:
-                error_msg.append("Atlas")
-            if result_local.deleted_count == 0:
-                error_msg.append("Local")
-
-            error_locations = " and ".join(error_msg)
-            print(f"Falha ao deletar filme {tconst} em: {error_locations}")
-            return {
-                "data": f"Failed to delete movie from {error_locations} database"
-            }, 500
+        if collection.delete_one({"tconst": tconst}).deleted_count == 0:
+            return {"data": f"Movie {tconst} not found"}, 404
+        return {"data": f"Movie {tconst} deleted"}, 200
     except Exception as e:
-        print(f"Erro ao deletar filme: {e}")
+        logger.error("Could not delete %s: %s", tconst, e)
         return {"data": "Failed to delete listed movie"}, 500
 
 
