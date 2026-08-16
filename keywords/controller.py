@@ -1,8 +1,12 @@
+import logging
+
 from config import get_mongo_collection
 from openai import OpenAI
 from pydantic import BaseModel, Field, constr, conint
 from typing import List
 from config import OPENAI_API_KEY
+
+logger = logging.getLogger(__name__)
 
 COLLECTION_NAME = "favorites_keywords"
 
@@ -97,7 +101,7 @@ def add_keyword(keyword):
             }, 201
         return {"data": "Failed to retrieve inserted keyword"}, 500
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error("Error: %s", e)
         return {"data": "Failed to add keyword"}, 500
 
 
@@ -111,7 +115,7 @@ def get_favorited_keywords():
             keyword["_id"] = str(keyword["_id"])
         return {"data": keywords}, 200
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error("Error: %s", e)
         return {"data": "Failed to retrieve keywords"}, 500
 
 
@@ -128,7 +132,7 @@ def delete_favorited_keyword(keyword):
             return {"data": "Keyword deleted successfully"}, 200
         return {"data": "Keyword not found"}, 404
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error("Error: %s", e)
         return {"data": "Failed to delete keyword"}, 500
 
 
@@ -173,5 +177,5 @@ def suggest_movies_by_keywords(keywords):
         return {"data": response.choices[0].message.parsed.model_dump()}, 200
 
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error("Error: %s", e)
         return {"data": "Falha ao gerar sugestões de filmes"}, 500

@@ -1,6 +1,9 @@
-import math
 import io
+import logging
+import math
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 
 # Substitui valores inválidos ou não-serializáveis por valores aceitáveis em JSON.
@@ -108,16 +111,20 @@ def optimize_image(file_obj, max_width=800, quality=85):
         # Volta para o início do buffer
         output.seek(0)
         
-        # Log para debug (pode ser removido depois)
         new_size = len(output.getvalue())
         if original_size > 0:
             reduction = ((original_size - new_size) / original_size) * 100
-            print(f"Imagem otimizada: {original_size / (1024*1024):.2f} MB -> {new_size / 1024:.2f} KB (redução de {reduction:.1f}%)")
+            logger.info(
+                "Image optimized: %.2f MB -> %.2f KB (%.1f%% smaller)",
+                original_size / (1024 * 1024),
+                new_size / 1024,
+                reduction,
+            )
         
         return output
         
     except Exception as e:
-        print(f"Erro ao otimizar imagem: {e}")
+        logger.error("Erro ao otimizar imagem: %s", e)
         # Em caso de erro, retorna o arquivo original na posição original
         if hasattr(file_obj, 'seek'):
             file_obj.seek(original_position if 'original_position' in locals() else 0)

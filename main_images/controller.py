@@ -1,3 +1,5 @@
+import logging
+
 from datetime import datetime
 import boto3
 import re
@@ -5,6 +7,8 @@ from botocore.exceptions import ClientError
 
 from config import get_mongo_collection, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 from utils import optimize_image
+
+logger = logging.getLogger(__name__)
 
 
 COLLECTION_NAME = "main-images"
@@ -44,7 +48,7 @@ def save_image_metadata(tconst, filename, sequential_id, subtitle_en="", subtitl
         collection.insert_one(image_doc)
         return True
     except Exception as e:
-        print(f"Erro ao salvar metadados da imagem: {e}")
+        logger.error("Erro ao salvar metadados da imagem: %s", e)
         return False
 
 
@@ -108,7 +112,7 @@ def upload_image_to_s3(file, bucket_name, tconst, subtitle_en="", subtitle_pt=""
             "sequential_id": sequential_id,
         }, 200
     except Exception as e:
-        print(f"Erro ao fazer upload para S3: {e}")
+        logger.error("Erro ao fazer upload para S3: %s", e)
         return {"status": 500, "message": "Erro ao fazer upload para S3"}, 500
 
 
@@ -141,7 +145,7 @@ def get_all_image_urls(bucket_name, tconst):
 
         return {"images": images}, 200
     except Exception as e:
-        print(f"Erro ao listar imagens: {e}")
+        logger.error("Erro ao listar imagens: %s", e)
         return {"status": 500, "message": "Erro ao listar imagens"}, 500
 
 
@@ -170,10 +174,10 @@ def delete_image_from_s3(bucket_name, tconst, filename):
         
         return {"message": f"Imagem '{filename}' deletada com sucesso"}, 200
     except ClientError as e:
-        print(f"Erro ao deletar imagem do S3: {e}")
+        logger.error("Erro ao deletar imagem do S3: %s", e)
         return {"status": 500, "message": "Erro ao deletar imagem"}, 500
     except Exception as e:
-        print(f"Erro ao deletar metadados: {e}")
+        logger.error("Erro ao deletar metadados: %s", e)
         return {"status": 500, "message": "Erro ao deletar metadados"}, 500
 
 

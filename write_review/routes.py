@@ -130,7 +130,7 @@ class MovieReview(Resource):
     @api.response(404, "Movie not found")
     def post(self, tconst):
         """Cria uma nova resenha para um filme"""
-        return create_and_save_movie_review(tconst)
+        return create_and_save_movie_review(tconst, request.get_json())
 
     @api.doc("update_review")
     @api.expect(review_update_input)

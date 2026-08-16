@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
 from keywords.controller import (
@@ -6,6 +8,8 @@ from keywords.controller import (
     delete_favorited_keyword,
     suggest_movies_by_keywords,
 )
+
+logger = logging.getLogger(__name__)
 
 keywords_bp = Blueprint("keywords", __name__)
 api = Namespace(
@@ -86,7 +90,7 @@ class KeywordList(Resource):
             return add_keyword(keyword)
 
         except Exception as e:
-            print(f"Error processing request: {e}")
+            logger.error("Error processing request: %s", e)
             return {"data": "Invalid request format"}, 400
 
 
@@ -122,7 +126,7 @@ class MovieSuggestions(Resource):
             return suggest_movies_by_keywords(keywords)
 
         except Exception as e:
-            print(f"Error processing request: {e}")
+            logger.error("Error processing request: %s", e)
             return {"data": "Formato de requisição inválido"}, 400
 
 

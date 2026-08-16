@@ -1,86 +1,48 @@
-from flask import request
-import json
 from datetime import datetime
+import logging
 
 from config import get_mongo_collection
 from utils import sanitize_movie_data, sanitize_filters
-from bson import ObjectId
 
-authoralreviewslist_collection = get_mongo_collection("authoralreviewslist")
-favoritelist_collection = get_mongo_collection("favoritelist")
+logger = logging.getLogger(__name__)
 
-COLLECTION_NAME = "authoralreviewslist"
+COLLECTION = "authoralreviewslist"
+
+
+def reviews():
+    return get_mongo_collection(COLLECTION)
 
 
 # Cria e salva uma resenha para um filme
-def create_and_save_movie_review(tconst):
+def create_and_save_movie_review(tconst, review_data):
     """Cria e salva uma resenha para um filme"""
-    print(f"Iniciando a criação da resenha para o filme: {tconst}")
-
     try:
-        favoritelist_collection = get_mongo_collection("favoritelist")
-        print(f"Conectado à coleção de favoritos: {favoritelist_collection}")
-
-        movie = favoritelist_collection.find_one({"tconst": tconst})
-
+        movie = get_mongo_collection("favoritelist").find_one({"tconst": tconst})
         if not movie:
-            print("Filme não encontrado nos favoritos.")
             return {"status": 404, "message": "Filme não encontrado nos favoritos"}, 404
 
-        # print(f"Filme encontrado: {movie.get('primaryTitle')}")
+        collection = reviews()
+        if collection.find_one({"tconst": tconst}):
+            return {"status": 400, "message": "Já existe uma resenha para este filme"}, 400
 
-        authoralreviewslist_collection_atlas = get_mongo_collection(
-            COLLECTION_NAME, use_atlas=True
-        )
-        authoralreviewslist_collection_local = get_mongo_collection(
-            COLLECTION_NAME, use_atlas=False
-        )
-        # print("Conectado às coleções de blogposts (Atlas e Local)")
-
-        existing_post_atlas = authoralreviewslist_collection_atlas.find_one(
-            {"tconst": tconst}
-        )
-        existing_post_local = authoralreviewslist_collection_local.find_one(
-            {"tconst": tconst}
-        )
-
-        if existing_post_atlas or existing_post_local:
-            print("Já existe uma resenha para este filme.")
-            return {
-                "status": 400,
-                "message": "Já existe uma resenha para este filme",
-            }, 400
-
-        review_data = request.json
         if not review_data or not review_data.get("content", {}).get("pt", {}).get("text"):
             return {"status": 400, "message": "Conteúdo da review é obrigatório"}, 400
 
-        review_content = review_data.get("content", {})
-        primaryTitle = movie.get("primaryTitle", "")
-        creation_timestamp = datetime.now().isoformat()
-
         review_document = {
             "tconst": tconst,
-            "content": review_content,
-            "created_at": creation_timestamp,
+            "content": review_data.get("content", {}),
+            "created_at": datetime.now().isoformat(),
             "isAiGenerated": review_data.get("isAiGenerated", False),
             "references": review_data.get("references", []),
             "images": review_data.get("images", []),
-            "primaryTitle": primaryTitle,
+            "primaryTitle": movie.get("primaryTitle", ""),
         }
 
-        # print("Documento a ser salvo:", json.dumps(review_document, indent=2))  # Debug
-
-        atlas_result = authoralreviewslist_collection_atlas.insert_one(review_document)
-        authoralreviewslist_collection_local.insert_one(review_document)
-
-        # Convertendo o ObjectId para string antes de retornar
-        review_document["_id"] = str(atlas_result.inserted_id)
-
+        review_document["_id"] = str(collection.insert_one(review_document).inserted_id)
+        logger.info("Review created for %s", tconst)
         return {"data": review_document}, 200
-
     except Exception as e:
-        print(f"Erro inesperado: {str(e)}")
+        logger.error("Could not create review for %s: %s", tconst, e)
         return {"status": 500, "message": str(e)}, 500
 
 
@@ -89,7 +51,7 @@ def get_movie_review(tconst):
     try:
         # Buscar todas as reviews para o tconst específico
         movie_reviews = list(
-            authoralreviewslist_collection.find(
+            reviews().find(
                 {"tconst": tconst},
                 {
                     "_id": 1,
@@ -117,7 +79,7 @@ def get_movie_review(tconst):
             return {"message": "No reviews found for this movie"}, 404
 
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error("Could not fetch review of %s: %s", tconst, e)
         return {"message": "Internal server error"}, 500
 
 
@@ -126,7 +88,8 @@ def edit_movie_review(tconst, request_data):
     """Atualiza uma resenha específica"""
     try:
         # Verifica se a review existe usando tconst
-        existing_review = authoralreviewslist_collection.find_one({"tconst": tconst})
+        collection = reviews()
+        existing_review = collection.find_one({"tconst": tconst})
 
         if not existing_review:
             return {"message": "Review not found"}, 404
@@ -145,21 +108,17 @@ def edit_movie_review(tconst, request_data):
             return {"message": "No valid fields to update"}, 400
 
         # Atualiza o documento específico
-        result = authoralreviewslist_collection.update_one(
-            {"tconst": tconst}, {"$set": update_data}
-        )
+        result = collection.update_one({"tconst": tconst}, {"$set": update_data})
 
         if result.modified_count == 1:
             # Busca a review atualizada para retornar
-            updated_review = authoralreviewslist_collection.find_one(
-                {"tconst": tconst}, {"_id": 0}  # Exclui o _id do resultado
-            )
+            updated_review = collection.find_one({"tconst": tconst}, {"_id": 0})
             return {"data": updated_review}, 200
         else:
             return {"message": "No changes were made"}, 400
 
     except Exception as e:
-        print(f"Error updating review: {e}")
+        logger.error("Could not update review of %s: %s", tconst, e)
         return {"message": "Failed to update review"}, 500
 
 
@@ -167,32 +126,17 @@ def edit_movie_review(tconst, request_data):
 def delete_movie_review(tconst):
     """Remove uma resenha da base usando apenas o tconst"""
     try:
-        authoralreviewslist_collection_atlas = get_mongo_collection(
-            COLLECTION_NAME, use_atlas=True
-        )
-        authoralreviewslist_collection_local = get_mongo_collection(
-            COLLECTION_NAME, use_atlas=False
-        )
-
-        result_atlas = authoralreviewslist_collection_atlas.delete_one(
-            {"tconst": tconst}
-        )
-        result_local = authoralreviewslist_collection_local.delete_one(
-            {"tconst": tconst}
-        )
-
-        if result_atlas.deleted_count == 1 or result_local.deleted_count == 1:
-            return {"message": "Review deleted successfully"}, 200
-        else:
+        if reviews().delete_one({"tconst": tconst}).deleted_count == 0:
             return {"status": 404, "message": "Review not found"}, 404
+        return {"message": "Review deleted successfully"}, 200
     except Exception as e:
-        print(f"Error deleting review: {e}")
+        logger.error("Could not delete review of %s: %s", tconst, e)
         return {"status": 500, "message": "Failed to delete review"}, 500
 
 
 # Recupera as resenhas criadas
 def get_created_reviews(filters={}, sorters=["_id", -1]):
-    collection = authoralreviewslist_collection
+    collection = reviews()
 
     try:
         sanitized_filters = sanitize_filters(filters)
@@ -209,5 +153,5 @@ def get_created_reviews(filters={}, sorters=["_id", -1]):
 
         return {"total_documents": total_documents, "entries": items}, 200
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error("Could not search reviews: %s", e)
         return {"status": 500, "message": "Internal server error"}, 500
