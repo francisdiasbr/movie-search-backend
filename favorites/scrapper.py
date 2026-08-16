@@ -178,95 +178,91 @@ def get_wikipedia_url(movie_title):
 
 def get_movie_sm_plot(tconst):
     soup = fetch_soup(tconst)
-    if soup:
-        plot_span = soup.find("span", {"data-testid": "plot-xs_to_m"})
-        if plot_span:
-            plot_text = plot_span.get_text()
-            return plot_text if plot_text else "Plot not available"
-    return "Plot not available"
+    if not soup:
+        return None
+
+    plot_span = soup.find("span", {"data-testid": "plot-xs_to_m"})
+    return plot_span.get_text() if plot_span else None
 
 
 def get_movie_country(tconst):
     soup = fetch_soup(tconst)
-    if soup:
-        country_div = soup.find("div", {"data-testid": "title-details-section"})
-        if country_div:
-            origin_li = country_div.find("li", {"data-testid": "title-details-origin"})
-            if origin_li:
-                ul_inline_list = origin_li.find("ul", {"class": "ipc-inline-list"})
-                if ul_inline_list:
-                    country_link = ul_inline_list.find("a")
-                    if country_link:
-                        return country_link.get_text(strip=True)
-            return "Country not available"
-    return "Country not available"
+    if not soup:
+        return None
+
+    details = soup.find("div", {"data-testid": "title-details-section"})
+    origin = details.find("li", {"data-testid": "title-details-origin"}) if details else None
+    inline_list = origin.find("ul", {"class": "ipc-inline-list"}) if origin else None
+    link = inline_list.find("a") if inline_list else None
+    return link.get_text(strip=True) if link else None
 
 
 def get_movie_trivia(tconst):
     soup = fetch_soup(tconst, "trivia")
-    if soup:
-        content_divs = soup.find_all("div", {"class": "ipc-html-content-inner-div"})
-        trivia = [
-            content_div.get_text(separator=" ", strip=True)
-            for content_div in content_divs[:5]
-        ]
-        return "\n\n".join(trivia) if trivia else "Trivia not available"
-    return "Trivia not available"
+    if not soup:
+        return None
+
+    entries = [
+        div.get_text(separator=" ", strip=True)
+        for div in soup.find_all("div", {"class": "ipc-html-content-inner-div"})[:5]
+    ]
+    return "\n\n".join(entries) or None
 
 
 def get_movie_quote(tconst):
     soup = fetch_soup(tconst, "quotes")
-    if soup:
-        content_divs = soup.find_all("div", {"class": "ipc-html-content-inner-div"})
-        quotes = []
-        for content_div in content_divs[:1]:
-            ul_tag = content_div.find("ul")
-            if ul_tag:
-                quote_text = ul_tag.get_text(separator=" ", strip=True)
-                quotes.append(quote_text)
-        return "\n\n".join(quotes) if quotes else "Quote not available"
-    return "Quote not available"
+    if not soup:
+        return None
+
+    first = soup.find("div", {"class": "ipc-html-content-inner-div"})
+    quote = first.find("ul") if first else None
+    return quote.get_text(separator=" ", strip=True) if quote else None
 
 
 def get_movie_plot_keywords(tconst):
     soup = fetch_soup(tconst, "keywords")
-    if soup:
-        keywords_list = soup.find_all("li", {"data-testid": "list-summary-item"})
-        keywords = [
-            item.find("a").get_text() for item in keywords_list if item.find("a")
-        ]
-        return keywords if keywords else ["Keywords not available"]
-    return ["Error retrieving keywords"]
+    if not soup:
+        return None
+
+    items = soup.find_all("li", {"data-testid": "list-summary-item"})
+    return [item.find("a").get_text() for item in items if item.find("a")] or None
+
+
+def _principal_credit(soup, index, tconst):
+    """Returns the nth principal credit section: 0 director, 1 writers, 2 stars."""
+    credits = soup.find_all("li", {"data-testid": "title-pc-principal-credit"})
+    if len(credits) <= index:
+        logger.warning(
+            "Only %d credit sections on %s, expected at least %d",
+            len(credits),
+            tconst,
+            index + 1,
+        )
+        return None
+    return credits[index]
 
 
 def get_director(tconst):
     soup = fetch_soup(tconst)
-    if soup:
-        director_section = soup.find_all(
-            "li", {"data-testid": "title-pc-principal-credit"}
-        )[0]
-        if director_section:
-            director_link = director_section.find(
-                "a", {"class": "ipc-metadata-list-item__list-content-item--link"}
-            )
-            if director_link:
-                return director_link.get_text(strip=True)
-    return "Director not available"
+    if not soup:
+        return None
+
+    section = _principal_credit(soup, 0, tconst)
+    link = section.find("a", {"class": "ipc-metadata-list-item__list-content-item--link"}) if section else None
+    return link.get_text(strip=True) if link else None
 
 
 def get_writers(tconst):
     soup = fetch_soup(tconst)
-    if soup:
-        writers_section = soup.find_all(
-            "li", {"data-testid": "title-pc-principal-credit"}
-        )[1]
-        if writers_section:
-            writers_links = writers_section.find_all(
-                "a", {"class": "ipc-metadata-list-item__list-content-item--link"}
-            )
-            writers = [link.get_text(strip=True) for link in writers_links]
-            return writers if writers else ["Writers not available"]
-    return ["Error retrieving writers"]
+    if not soup:
+        return None
+
+    section = _principal_credit(soup, 1, tconst)
+    if not section:
+        return None
+
+    links = section.find_all("a", {"class": "ipc-metadata-list-item__list-content-item--link"})
+    return [link.get_text(strip=True) for link in links] or None
 
 
 def get_movie_principal_stars(tconst):
@@ -274,13 +270,11 @@ def get_movie_principal_stars(tconst):
     if not soup:
         return None
 
-    # Stars are the third principal credit, after director and writers.
-    credits = soup.find_all("li", {"data-testid": "title-pc-principal-credit"})
-    if len(credits) < 3:
-        logger.warning("Only %d credit sections on %s, expected 3", len(credits), tconst)
+    section = _principal_credit(soup, 2, tconst)
+    if not section:
         return None
 
-    links = credits[2].select(
+    links = section.select(
         "ul.ipc-inline-list a.ipc-metadata-list-item__list-content-item--link"
     )
     if not links:
@@ -292,13 +286,15 @@ def get_movie_principal_stars(tconst):
 
 def get_movie_genres(tconst):
     soup = fetch_soup(tconst)
-    if soup:
-        genres_div = soup.find("div", {"data-testid": "interests"})
-        if genres_div:
-            genre_spans = genres_div.find_all("span", {"class": "ipc-chip__text"})
-            genres = [span.get_text() for span in genre_spans]
-            return genres if genres else ["Genres not available"]
-    return ["Error retrieving genres"]
+    if not soup:
+        return None
+
+    interests = soup.find("div", {"data-testid": "interests"})
+    if not interests:
+        return None
+
+    spans = interests.find_all("span", {"class": "ipc-chip__text"})
+    return [span.get_text() for span in spans] or None
 
 
 def get_movie_title(tconst):
