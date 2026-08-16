@@ -100,10 +100,6 @@ Sistema de geração automática de artigos que permite:
 
 ### Directors: favorita os diretores
 
-## API
-
-![API Documentation](assets/swagger.png)
-
 ## Documentação da API (Open API / Swagger)
 A documentação interativa da API está disponível através do Swagger UI:
 
