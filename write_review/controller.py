@@ -49,24 +49,8 @@ def create_and_save_movie_review(tconst, review_data):
 # Obtém uma resenha específica
 def get_movie_review(tconst):
     try:
-        # Buscar todas as reviews para o tconst específico
-        movie_reviews = list(
-            reviews().find(
-                {"tconst": tconst},
-                {
-                    "_id": 1,
-                    "created_at": 1,
-                    "content": 1,
-                    "isAiGenerated": 1,
-                    "images": 1,
-                    "primaryTitle": 1,
-                    "references": 1,
-                    "tconst": 1,
-                },
-            )
-        )
+        movie_reviews = list(reviews().find({"tconst": tconst}))
 
-        # Converter ObjectId para string em cada review
         for review in movie_reviews:
             review["_id"] = str(review["_id"])
 

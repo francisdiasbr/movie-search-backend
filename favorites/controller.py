@@ -1,6 +1,8 @@
 from flask import request
 import logging
 import requests
+from pymongo import ReturnDocument
+
 from config import get_mongo_collection
 import time
 from datetime import datetime
@@ -180,8 +182,11 @@ def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, refer
     sync_blogpost(tconst, update_data)
 
     try:
-        collection.update_one({"tconst": tconst}, {"$set": update_data})
-        updated_movie = collection.find_one({"tconst": tconst})
+        updated_movie = collection.find_one_and_update(
+            {"tconst": tconst},
+            {"$set": update_data},
+            return_document=ReturnDocument.AFTER,
+        )
         updated_movie["_id"] = str(updated_movie["_id"])
         return {"data": updated_movie}, 200
     except Exception as e:

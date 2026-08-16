@@ -76,30 +76,14 @@ def add_keyword(keyword):
     if not keyword:
         return {"data": "Keyword is required"}, 400
 
-    collection_atlas = get_mongo_collection(COLLECTION_NAME, use_atlas=True)
-    collection_local = get_mongo_collection(COLLECTION_NAME, use_atlas=False)
+    collection = get_mongo_collection(COLLECTION_NAME)
 
-    # Verifica se a palavra-chave já está na lista de favoritos
-    existing_keyword_atlas = collection_atlas.find_one({"keyword": keyword})
-    existing_keyword_local = collection_local.find_one({"keyword": keyword})
-
-    if existing_keyword_atlas or existing_keyword_local:
+    if collection.find_one({"keyword": keyword}):
         return {"data": "Keyword already listed"}, 409
 
     try:
-        # Insere em ambas as coleções
-        result_atlas = collection_atlas.insert_one({"keyword": keyword})
-        result_local = collection_local.insert_one({"keyword": keyword})
-
-        inserted_keyword = collection_atlas.find_one({"_id": result_atlas.inserted_id})
-        if inserted_keyword:
-            return {
-                "data": {
-                    "_id": str(inserted_keyword["_id"]),
-                    "keyword": inserted_keyword["keyword"],
-                }
-            }, 201
-        return {"data": "Failed to retrieve inserted keyword"}, 500
+        inserted_id = collection.insert_one({"keyword": keyword}).inserted_id
+        return {"data": {"_id": str(inserted_id), "keyword": keyword}}, 201
     except Exception as e:
         logger.error("Error: %s", e)
         return {"data": "Failed to add keyword"}, 500
