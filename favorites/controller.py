@@ -21,7 +21,6 @@ from favorites.scrapper import (
     get_wikipedia_url,
     get_writers,
 )
-from responses import fail, ok
 from utils import sanitize_movie_data, sanitize_filters
 from favorites.external_requests import get_magnet_link, get_subtitle_url
 
@@ -31,14 +30,14 @@ def favorite_movie(tconst):
     
     if not tconst:
         print("[FAVORITE] Erro: tconst é obrigatório")
-        return fail("tconst is required", 400)
+        return {"data": "tconst is required"}, 400
 
     collection_atlas = get_mongo_collection("favoritelist", use_atlas=True)
     collection_local = get_mongo_collection("favoritelist", use_atlas=False)
 
     if collection_atlas is None:
         print("[FAVORITE] Erro: coleção Atlas indisponível")
-        return fail("Banco de dados Atlas indisponível", 503)
+        return {"status": 503, "message": "Banco de dados Atlas indisponível"}, 503
 
     # Verificar em ambas as coleções
     print("[FAVORITE] Verificando se o filme já existe nas coleções...")
@@ -47,13 +46,13 @@ def favorite_movie(tconst):
 
     if existing_movie_atlas or existing_movie_local:
         print(f"[FAVORITE] Filme {tconst} já existe na lista de favoritos")
-        return fail("Movie already listed", 409)
+        return {"data": "Movie already listed"}, 409
 
     print("[FAVORITE] Obtendo título do filme...")
     movie_title = get_movie_title(tconst)
     if not movie_title:
         print(f"[FAVORITE] Título do filme {tconst} não encontrado no IMDB")
-        return fail("Título do filme não encontrado no IMDB", 404)
+        return {"data": "Título do filme não encontrado no IMDB"}, 404
 
     print(f"[FAVORITE] Título obtido: {movie_title}")
     movie_data = {
@@ -116,10 +115,10 @@ def favorite_movie(tconst):
         else:
             print("[FAVORITE] MongoDB local indisponível, inserido apenas no Atlas")
         print(f"[FAVORITE] Filme inserido com sucesso. ID: {movie_data['_id']}")
-        return ok(movie_data, 201)
+        return {"data": movie_data}, 201
     except Exception as e:
         print(f"[FAVORITE] Erro ao inserir filme: {e}")
-        return fail("Erro ao inserir filme", 500)
+        return {"status": 500, "message": "Erro ao inserir filme"}, 500
 
 
 # Recupera um filme favoritado
@@ -127,18 +126,18 @@ def get_favorited_movie(tconst):
     collection = get_mongo_collection("favoritelist")
 
     if not tconst:
-        return fail("tconst is required", 400)
+        return {"data": "tconst is required"}, 400
 
     try:
         movie = collection.find_one({"tconst": tconst})
         if movie:
             movie["_id"] = str(movie["_id"])
-            return ok(movie)
+            return {"data": movie}, 200
         else:
-            return fail("Movie not found", 404)
+            return {"data": "Movie not found"}, 404
     except Exception as e:
         print(f"{e}")
-        return fail("Failed to retrieve movie", 500)
+        return {"data": "Failed to retrieve movie"}, 500
 
 
 # Edita um filme favoritado
@@ -153,7 +152,7 @@ def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, refer
     current_movie = collection.find_one({"tconst": tconst})
     if not current_movie:
         print(f"[EDIT] Filme {tconst} não encontrado")
-        return fail(f"Movie {tconst} not found", 404)
+        return {"data": f"Movie {tconst} not found"}, 404
 
     print(f"[EDIT] Filme encontrado: {current_movie}")
 
@@ -204,7 +203,7 @@ def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, refer
 
     if not update_data:
         print("[EDIT] Nenhum campo para atualizar")
-        return fail("No fields to update", 400)
+        return {"data": "No fields to update"}, 400
 
     try:
         print(f"[EDIT] Dados a serem atualizados: {update_data}")
@@ -218,13 +217,13 @@ def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, refer
             updated_movie = collection.find_one({"tconst": tconst})
             updated_movie["_id"] = str(updated_movie["_id"])
             print(f"[EDIT] Dados atualizados retornados: {updated_movie}")
-            return ok(updated_movie)
+            return {"data": updated_movie}, 200
         else:
             print(f"[EDIT] Filme {tconst} não encontrado")
-            return fail(f"Movie {tconst} not found", 404)
+            return {"data": f"Movie {tconst} not found"}, 404
     except Exception as e:
         print(f"[EDIT] Erro ao atualizar filme: {e}")
-        return fail("Failed to update favorited movie", 500)
+        return {"data": "Failed to update favorited movie"}, 500
 
 
 # Remove um filme dos favoritos
@@ -240,7 +239,7 @@ def delete_favorited_movie(tconst):
         # Verifica se foi deletado em AMBAS as coleções
         if result_atlas.deleted_count == 1 and result_local.deleted_count == 1:
             print(f"Filme {tconst} deletado com sucesso de ambas as coleções")
-            return ok(f"Movie {tconst} deleted")
+            return {"data": f"Movie {tconst} deleted"}, 200
         else:
             # Se falhou em alguma das coleções, informa qual
             error_msg = []
@@ -251,10 +250,12 @@ def delete_favorited_movie(tconst):
 
             error_locations = " and ".join(error_msg)
             print(f"Falha ao deletar filme {tconst} em: {error_locations}")
-            return fail(f"Failed to delete movie from {error_locations} database", 500)
+            return {
+                "data": f"Failed to delete movie from {error_locations} database"
+            }, 500
     except Exception as e:
         print(f"Erro ao deletar filme: {e}")
-        return fail("Failed to delete listed movie", 500)
+        return {"data": "Failed to delete listed movie"}, 500
 
 
 # Campos que a listagem do frontend realmente usa. O documento completo carrega
@@ -312,9 +313,6 @@ def get_favorited_movies(
             item["_id"] = str(item["_id"])
             sanitize_movie_data(item)
 
-        # Exceção deliberada ao envelope: o frontend lê entries, countries,
-        # years e total_documents na raiz da resposta. Migrar para {"data": ...}
-        # exige mudar o movieFavoritesSlice junto.
         return {
             "total_documents": total_documents,
             "entries": items,
@@ -323,4 +321,4 @@ def get_favorited_movies(
         }, 200
     except Exception as e:
         print(f"Error: {e}")
-        return fail("Internal server error", 500)
+        return {"status": 500, "message": "Internal server error"}, 500
