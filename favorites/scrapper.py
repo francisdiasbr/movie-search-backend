@@ -37,9 +37,9 @@ WAF_RETRY_DELAY = 3
 _cache = {}
 _cache_lock = threading.Lock()
 
-# Toda navegação passa por uma única thread dona do Playwright: a API síncrona
-# não pode ser usada de outra thread além da que a criou, e o Chromium tranca o
-# diretório de perfil, então não dá para abrir o mesmo perfil em paralelo.
+# Every page load goes through a single thread that owns Playwright: the sync
+# API cannot be used from a thread other than the one that created it, and
+# Chromium locks the profile directory, so it cannot be opened in parallel.
 _jobs = queue.Queue()
 _worker = None
 _worker_lock = threading.Lock()
@@ -271,44 +271,23 @@ def get_writers(tconst):
 
 def get_movie_principal_stars(tconst):
     soup = fetch_soup(tconst)
-    if soup:
-        try:
-            print("Soup fetched successfully.")
-
-            # Encontrar todas as seções de créditos principais
-            credit_sections = soup.find_all(
-                "li", {"data-testid": "title-pc-principal-credit"}
-            )
-            print(f"Found {len(credit_sections)} credit sections")
-
-            # Procurar pela seção específica de Stars (geralmente é a terceira seção)
-            if len(credit_sections) >= 3:
-                stars_section = credit_sections[2]  # índice 2 é o terceiro elemento
-
-                # Encontrar todos os links dos atores dentro da ul específica
-                star_links = stars_section.select(
-                    "ul.ipc-inline-list a.ipc-metadata-list-item__list-content-item--link"
-                )
-                if star_links:
-                    # Extrair os nomes das estrelas
-                    stars = [link.get_text(strip=True) for link in star_links]
-                    return stars if stars else ["Stars not available"]
-                else:
-                    print("No star links found in the section")
-            else:
-                print(
-                    f"Not enough credit sections found (expected 3, got {len(credit_sections)})"
-                )
-
-        except Exception as e:
-            print(f"Error extracting stars: {e}")
-            print(f"Error type: {type(e)}")
-            import traceback
-
-            print(traceback.format_exc())
-    else:
-        print("Failed to fetch soup.")
+    if not soup:
         return None
+
+    # Stars are the third principal credit, after director and writers.
+    credits = soup.find_all("li", {"data-testid": "title-pc-principal-credit"})
+    if len(credits) < 3:
+        logger.warning("Only %d credit sections on %s, expected 3", len(credits), tconst)
+        return None
+
+    links = credits[2].select(
+        "ul.ipc-inline-list a.ipc-metadata-list-item__list-content-item--link"
+    )
+    if not links:
+        logger.warning("No star links on %s", tconst)
+        return None
+
+    return [link.get_text(strip=True) for link in links]
 
 
 def get_movie_genres(tconst):
@@ -331,9 +310,8 @@ def get_movie_title(tconst):
             if span:
                 return span.get_text(strip=True)
             return h1.get_text(strip=True)
-        print(soup.prettify()[:1000])
-    else:
-        return None
+        logger.warning("No title heading on %s", tconst)
+    return None
 
 
 def get_movie_poster(tconst):
@@ -347,7 +325,7 @@ def get_movie_poster(tconst):
         if container:
             img = container.find("img")
             if img and img.get("src"):
-                print(f"[SCRAPPER] poster via data-testid={testid}: {img['src'][:60]}")
+                logger.debug("Poster of %s via data-testid=%s", tconst, testid)
                 return img["src"]
 
     # 2. overlay com aria-label contendo "poster" ou "pôster"
@@ -358,7 +336,7 @@ def get_movie_poster(tconst):
             if parent:
                 img = parent.find("img", class_="ipc-image")
                 if img and img.get("src"):
-                    print(f"[SCRAPPER] poster via aria-label: {img['src'][:60]}")
+                    logger.debug("Poster of %s via aria-label", tconst)
                     return img["src"]
 
     # 3. primeira ipc-image dentro de ipc-poster
@@ -366,10 +344,10 @@ def get_movie_poster(tconst):
     if poster_div:
         img = poster_div.find("img", class_="ipc-image")
         if img and img.get("src"):
-            print(f"[SCRAPPER] poster via ipc-poster: {img['src'][:60]}")
+            logger.debug("Poster of %s via ipc-poster", tconst)
             return img["src"]
 
-    print(f"[SCRAPPER] poster não encontrado para {tconst}")
+    logger.warning("No poster found for %s", tconst)
     return None
 
 
