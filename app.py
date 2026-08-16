@@ -1,7 +1,14 @@
+import logging
 import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_restx import Api
+
+# Without this the root level stays at WARNING and every logger.info is dropped.
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 import config
 from favorites.routes import favorites_bp
