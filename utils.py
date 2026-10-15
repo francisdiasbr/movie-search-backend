@@ -6,6 +6,17 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 
+def error(message, status):
+    """The one error shape of the API: `{ message }` plus the HTTP status."""
+    return {"message": message}, status
+
+
+def pick(data, keys):
+    """Subset of `data` with only the allowed `keys`."""
+    data = data if isinstance(data, dict) else {}
+    return {key: data[key] for key in keys if key in data}
+
+
 # Substitui valores inválidos ou não-serializáveis por valores aceitáveis em JSON.
 def sanitize_movie_data(movie_data):
     for key, value in movie_data.items():

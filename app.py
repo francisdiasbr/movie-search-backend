@@ -64,12 +64,12 @@ api = Api(
 def handle_database_unavailable(error):
     """Every controller reaches Mongo through get_mongo_collection, so this is
     the single place that answers when the database is down."""
-    return {"status": 503, "message": str(error)}, 503
+    return {"message": str(error)}, 503
 
 
 @api.errorhandler(StorageUnavailable)
 def handle_storage_unavailable(error):
-    return {"status": 503, "message": str(error)}, 503
+    return {"message": str(error)}, 503
 
 
 # Root route

@@ -2,68 +2,43 @@ import logging
 
 from openai import OpenAI
 
-from config import get_mongo_collection, OPENAI_API_KEY
+import db
+from config import KEYWORDS_COLLECTION, OPENAI_API_KEY, get_mongo_collection
 from keywords.schemas import MovieSuggestions
+from utils import error
 
 logger = logging.getLogger(__name__)
 
-COLLECTION_NAME = "favorites_keywords"
+
+def keywords():
+    return get_mongo_collection(KEYWORDS_COLLECTION)
 
 
 def add_keyword(keyword):
-    """Adiciona uma palavra-chave aos favoritos"""
+    keyword = str(keyword or "").strip()
     if not keyword:
-        return {"data": "Keyword is required"}, 400
+        return error("Keyword is required", 400)
 
-    collection = get_mongo_collection(COLLECTION_NAME)
-
+    collection = keywords()
     if collection.find_one({"keyword": keyword}):
-        return {"data": "Keyword already listed"}, 409
+        return error("Keyword already listed", 409)
 
-    try:
-        inserted_id = collection.insert_one({"keyword": keyword}).inserted_id
-        return {"data": {"_id": str(inserted_id), "keyword": keyword}}, 201
-    except Exception as e:
-        logger.error("Error: %s", e)
-        return {"data": "Failed to add keyword"}, 500
+    return {"data": db.insert(collection, {"keyword": keyword})}, 201
 
 
 def get_favorited_keywords():
-    """Recupera todas as palavras-chave favoritas"""
-    collection = get_mongo_collection(COLLECTION_NAME)
-    try:
-        keywords = list(collection.find({}, {"_id": 1, "keyword": 1}))
-        # Converte ObjectId para string
-        for keyword in keywords:
-            keyword["_id"] = str(keyword["_id"])
-        return {"data": keywords}, 200
-    except Exception as e:
-        logger.error("Error: %s", e)
-        return {"data": "Failed to retrieve keywords"}, 500
+    _, entries = db.search(keywords(), projection={"keyword": 1}, sort=("keyword", 1))
+    return {"data": entries}, 200
 
 
 def delete_favorited_keyword(keyword):
-    """Remove uma palavra-chave dos favoritos"""
-    if not keyword:
-        return {"data": "Keyword is required"}, 400
-
-    collection = get_mongo_collection(COLLECTION_NAME)
-
-    try:
-        result = collection.delete_one({"keyword": keyword})
-        if result.deleted_count:
-            return {"data": "Keyword deleted successfully"}, 200
-        return {"data": "Keyword not found"}, 404
-    except Exception as e:
-        logger.error("Error: %s", e)
-        return {"data": "Failed to delete keyword"}, 500
+    if not db.delete(keywords(), {"keyword": keyword}):
+        return error("Keyword not found", 404)
+    return {"data": "Keyword deleted successfully"}, 200
 
 
 def suggest_movies_by_keywords(keywords):
     """Sugere filmes baseado em uma lista de palavras-chave usando OpenAI"""
-    if not keywords or not isinstance(keywords, list):
-        return {"data": "Lista de keywords é obrigatória"}, 400
-
     try:
         client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -100,5 +75,5 @@ def suggest_movies_by_keywords(keywords):
         return {"data": response.choices[0].message.parsed.model_dump()}, 200
 
     except Exception as e:
-        logger.error("Error: %s", e)
-        return {"data": "Falha ao gerar sugestões de filmes"}, 500
+        logger.error("OpenAI suggestion failed: %s", e)
+        return error("Falha ao gerar sugestões de filmes", 502)

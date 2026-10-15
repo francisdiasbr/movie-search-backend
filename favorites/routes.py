@@ -58,9 +58,9 @@ class FavoriteMovieSearch(Resource):
     @api.response(400, "Dados de entrada inválidos")
     def post(self):
         """Pesquisa filmes favoritados"""
-        request_data = request.get_json()
+        request_data = request.get_json(silent=True)
         if not isinstance(request_data, dict):
-            return {"status": 400, "message": "Invalid input data"}, 400
+            return {"message": "Invalid input data"}, 400
         return get_favorited_movies(
             filters=request_data.get("filters", {}),
             page=request_data.get("page", 1),
@@ -92,15 +92,7 @@ class FavoriteMovie(Resource):
     @api.response(404, "Filme não encontrado")
     def put(self, tconst):
         """Atualiza um filme favoritado"""
-        request_data = request.get_json()
-        return edit_favorited_movie(
-            tconst,
-            request_data.get("soundtrack"),
-            request_data.get("wiki"),
-            request_data.get("watched"),
-            request_data.get("references"),
-            request_data.get("magnet_link"),
-        )
+        return edit_favorited_movie(tconst, request.get_json(silent=True))
 
     @api.doc("delete_favorite_movie")
     @api.response(200, "Filme removido com sucesso")

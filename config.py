@@ -47,6 +47,13 @@ def get_mongo_collection(name):
     return get_mongo_client()[MONGODB_DATABASE][name]
 
 
+# Mongo collections
+FAVORITES_COLLECTION = "favoritelist"
+REVIEWS_COLLECTION = "authoralreviewslist"
+KEYWORDS_COLLECTION = "favorites_keywords"
+MAIN_IMAGES_COLLECTION = "main-images"
+BLOGPOSTS_COLLECTION = "blogposts"
+
 # Configurações da OpenAI
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 

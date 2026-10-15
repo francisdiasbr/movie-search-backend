@@ -1,5 +1,3 @@
-import logging
-
 from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
 from keywords.controller import (
@@ -8,8 +6,6 @@ from keywords.controller import (
     delete_favorited_keyword,
     suggest_movies_by_keywords,
 )
-
-logger = logging.getLogger(__name__)
 
 keywords_bp = Blueprint("keywords", __name__)
 api = Namespace(
@@ -77,21 +73,8 @@ class KeywordList(Resource):
     @api.response(400, "Palavra-chave é obrigatória")
     def post(self):
         """Adiciona uma palavra-chave aos favoritos"""
-        try:
-            request_data = request.get_json() or {}
-
-            if not isinstance(request_data, dict) or "keyword" not in request_data:
-                return {"data": "Keyword is required in request body"}, 400
-
-            keyword = str(request_data["keyword"]).strip()
-            if not keyword:
-                return {"data": "Keyword cannot be empty"}, 400
-
-            return add_keyword(keyword)
-
-        except Exception as e:
-            logger.error("Error processing request: %s", e)
-            return {"data": "Invalid request format"}, 400
+        request_data = request.get_json(silent=True) or {}
+        return add_keyword(request_data.get("keyword"))
 
 
 @api.route("/<string:keyword>")
@@ -110,24 +93,14 @@ class MovieSuggestions(Resource):
     @api.expect(keywords_model)
     @api.marshal_with(movie_suggestions_response_model, code=200, description="Sugestões geradas com sucesso")
     @api.response(400, "Lista de keywords inválida")
-    @api.response(500, "Erro ao gerar sugestões")
+    @api.response(502, "Erro ao gerar sugestões")
     def post(self):
         """Sugere filmes baseado em uma lista de palavras-chave"""
-        try:
-            request_data = request.get_json() or {}
-
-            if not isinstance(request_data, dict) or "keywords" not in request_data:
-                return {"data": "Lista de keywords é obrigatória"}, 400
-
-            keywords = request_data["keywords"]
-            if not isinstance(keywords, list) or not keywords:
-                return {"data": "Lista de keywords inválida"}, 400
-
-            return suggest_movies_by_keywords(keywords)
-
-        except Exception as e:
-            logger.error("Error processing request: %s", e)
-            return {"data": "Formato de requisição inválido"}, 400
+        request_data = request.get_json(silent=True) or {}
+        keywords = request_data.get("keywords")
+        if not isinstance(keywords, list) or not keywords:
+            return {"message": "Lista de keywords inválida"}, 400
+        return suggest_movies_by_keywords(keywords)
 
 
 keywords_bp.api = api

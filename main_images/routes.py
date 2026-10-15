@@ -20,7 +20,7 @@ class ImageOperations(Resource):
     def post(self, tconst):
         """Faz upload de uma imagem para o S3 associada a um filme específico com ID sequencial"""
         if "file" not in request.files:
-            return {"status": 400, "message": "Arquivo não encontrado"}, 400
+            return {"message": "Arquivo não encontrado"}, 400
 
         file = request.files["file"]
         data = request.form

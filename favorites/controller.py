@@ -1,9 +1,8 @@
 import logging
 from datetime import datetime
 
-from pymongo import ReturnDocument
-
-from config import get_mongo_collection
+import db
+from config import BLOGPOSTS_COLLECTION, FAVORITES_COLLECTION, get_mongo_collection
 
 from favorites.scrapper import (
     clear_soup_cache,
@@ -21,12 +20,10 @@ from favorites.scrapper import (
     get_wikipedia_url,
     get_writers,
 )
-from utils import sanitize_movie_data, sanitize_filters
+from utils import error, pick
 from favorites.external_requests import get_magnet_link, get_subtitle_url
 
 logger = logging.getLogger(__name__)
-
-COLLECTION = "favoritelist"
 
 # Scrapers that take a tconst, keyed by the field each one fills in. Adding a
 # new field to a favorite means adding one entry here.
@@ -73,53 +70,39 @@ def collect_movie_data(tconst, title):
 
 
 def favorite_movie(tconst):
-    if not tconst:
-        return {"data": "tconst is required"}, 400
-
-    collection = get_mongo_collection(COLLECTION)
+    collection = get_mongo_collection(FAVORITES_COLLECTION)
     if collection.find_one({"tconst": tconst}):
-        return {"data": "Movie already listed"}, 409
+        return error("Movie already listed", 409)
 
     title = get_movie_title(tconst)
     if not title:
         logger.warning("Title for %s not found on IMDB", tconst)
-        return {"data": "Título do filme não encontrado no IMDB"}, 404
+        return error("Título do filme não encontrado no IMDB", 404)
 
-    movie_data = {
-        "primaryTitle": title,
-        "tconst": tconst,
-        "imdb_url": f"https://www.imdb.com/title/{tconst}/",
-        "created_at": datetime.now().isoformat(),
-        "references": [],
-        **collect_movie_data(tconst, title),
-    }
-
-    try:
-        movie_data["_id"] = str(collection.insert_one(movie_data).inserted_id)
-        logger.info("Movie %s added as %s", tconst, movie_data["_id"])
-        return {"data": movie_data}, 201
-    except Exception as e:
-        logger.error("Could not insert %s: %s", tconst, e)
-        return {"status": 500, "message": "Erro ao inserir filme"}, 500
+    movie = db.insert(
+        collection,
+        {
+            "primaryTitle": title,
+            "tconst": tconst,
+            "imdb_url": f"https://www.imdb.com/title/{tconst}/",
+            "created_at": datetime.now().isoformat(),
+            "references": [],
+            **collect_movie_data(tconst, title),
+        },
+    )
+    logger.info("Movie %s added as %s", tconst, movie["_id"])
+    return {"data": movie}, 201
 
 
-# Recupera um filme favoritado
 def get_favorited_movie(tconst):
-    if not tconst:
-        return {"data": "tconst is required"}, 400
+    movie = db.serialize(get_mongo_collection(FAVORITES_COLLECTION).find_one({"tconst": tconst}))
+    if not movie:
+        return error("Movie not found", 404)
+    return {"data": movie}, 200
 
-    collection = get_mongo_collection(COLLECTION)
-    try:
-        movie = collection.find_one({"tconst": tconst})
-        if movie:
-            movie["_id"] = str(movie["_id"])
-            return {"data": movie}, 200
-        else:
-            return {"data": "Movie not found"}, 404
-    except Exception as e:
-        logger.error("Could not fetch %s: %s", tconst, e)
-        return {"data": "Failed to retrieve movie"}, 500
 
+# Fields the client may change on a favorite.
+EDITABLE_FIELDS = ("magnet_link", "references", "soundtrack", "watched", "wiki")
 
 # Fields mirrored onto the blogpost of the same movie, when one exists.
 BLOGPOST_MIRROR = {
@@ -139,7 +122,7 @@ def sync_blogpost(tconst, update_data):
         return
 
     try:
-        collection = get_mongo_collection("blogposts")
+        collection = get_mongo_collection(BLOGPOSTS_COLLECTION)
         if collection.find_one({"tconst": tconst}):
             collection.update_one({"tconst": tconst}, {"$set": mirrored})
             logger.info("Blogpost of %s synced with %s", tconst, sorted(mirrored))
@@ -147,58 +130,21 @@ def sync_blogpost(tconst, update_data):
         logger.error("Could not sync blogpost of %s: %s", tconst, e)
 
 
-# Edita um filme favoritado
-def edit_favorited_movie(tconst, soundtrack=None, wiki=None, watched=None, references=None, magnet_link=None):
-    collection = get_mongo_collection(COLLECTION)
+def edit_favorited_movie(tconst, request_data):
+    """Updates only the fields present in the body; the others are kept."""
+    fields = pick(request_data, EDITABLE_FIELDS)
+    movie = db.update(get_mongo_collection(FAVORITES_COLLECTION), {"tconst": tconst}, fields)
+    if not movie:
+        return error(f"Movie {tconst} not found", 404)
 
-    current_movie = collection.find_one({"tconst": tconst})
-    if not current_movie:
-        return {"data": f"Movie {tconst} not found"}, 404
-
-    fields = {
-        "magnet_link": magnet_link,
-        "references": references,
-        "soundtrack": soundtrack,
-        "watched": watched,
-        "wiki": wiki,
-    }
-    update_data = {field: value for field, value in fields.items() if value is not None}
-
-    # Rewrites the existing references when none were sent. It is a no-op on the
-    # document, but it keeps update_data non-empty so a PUT carrying no field
-    # still answers 200 instead of 400.
-    if references is None and "references" in current_movie:
-        update_data["references"] = current_movie["references"]
-
-    if not update_data:
-        return {"data": "No fields to update"}, 400
-
-    sync_blogpost(tconst, update_data)
-
-    try:
-        updated_movie = collection.find_one_and_update(
-            {"tconst": tconst},
-            {"$set": update_data},
-            return_document=ReturnDocument.AFTER,
-        )
-        updated_movie["_id"] = str(updated_movie["_id"])
-        return {"data": updated_movie}, 200
-    except Exception as e:
-        logger.error("Could not update %s: %s", tconst, e)
-        return {"data": "Failed to update favorited movie"}, 500
+    sync_blogpost(tconst, fields)
+    return {"data": movie}, 200
 
 
-# Remove um filme dos favoritos
 def delete_favorited_movie(tconst):
-    collection = get_mongo_collection(COLLECTION)
-
-    try:
-        if collection.delete_one({"tconst": tconst}).deleted_count == 0:
-            return {"data": f"Movie {tconst} not found"}, 404
-        return {"data": f"Movie {tconst} deleted"}, 200
-    except Exception as e:
-        logger.error("Could not delete %s: %s", tconst, e)
-        return {"data": "Failed to delete listed movie"}, 500
+    if not db.delete(get_mongo_collection(FAVORITES_COLLECTION), {"tconst": tconst}):
+        return error(f"Movie {tconst} not found", 404)
+    return {"data": f"Movie {tconst} deleted"}, 200
 
 
 # Campos que a listagem do frontend realmente usa. O documento completo carrega
@@ -212,58 +158,32 @@ LIST_PROJECTION = {
 }
 
 
-# Recupera os filmes favoritados
-def get_favorited_movies(
-    filters=None, sorters=("_id", -1), page=1, page_size=0, search_term=""
-):
-    collection = get_mongo_collection(COLLECTION)
+def get_favorited_movies(filters=None, page=1, page_size=0, search_term=""):
+    collection = get_mongo_collection(FAVORITES_COLLECTION)
 
     # Copied so the caller's dict (the request body) is never mutated.
     filters = dict(filters or {})
-    search_term = search_term or filters.get("search_term") or filters.get("tconst")
+    search_term = search_term or filters.pop("search_term", None) or filters.get("tconst")
 
-    # Filtra `search_term` no campo `tconst` ou `primaryTitle`
+    # `search_term` matches the exact tconst or part of the title/director.
     if search_term:
-        # Garante que search_term seja uma string para usar com $regex
-        search_term_str = str(search_term) if search_term else ""
-        if search_term_str:
-            filters["$or"] = [
-                {"tconst": search_term},
-                {"primaryTitle": {"$regex": search_term_str, "$options": "i"}},
-                {"director": {"$regex": search_term_str, "$options": "i"}},
-            ]
-
-    country = filters.get("country")
-    if country:
-        filters["country"] = country
-
-    # Sanitiza os filtros para garantir que valores $regex sejam strings
-    filters = sanitize_filters(filters)
-
-    try:
-        unique_countries = collection.distinct("country")
-        unique_years = [
-            int(year) for year in collection.distinct("startYear")
-            if year is not None and str(year).isdigit()
+        term = str(search_term)
+        filters["$or"] = [
+            {"tconst": term},
+            {"primaryTitle": {"$regex": term, "$options": "i"}},
+            {"director": {"$regex": term, "$options": "i"}},
         ]
 
-        total_documents = collection.count_documents(filters)
-        skip = (page - 1) * page_size if page_size else 0
-        query = collection.find(filters, LIST_PROJECTION).sort(sorters[0], sorters[1]).skip(skip)
-        if page_size:
-            query = query.limit(page_size)
-        items = list(query)
-
-        for item in items:
-            item["_id"] = str(item["_id"])
-            sanitize_movie_data(item)
-
-        return {
-            "total_documents": total_documents,
-            "entries": items,
-            "countries": unique_countries,
-            "years": unique_years,
-        }, 200
-    except Exception as e:
-        logger.error("Could not search favorites: %s", e)
-        return {"status": 500, "message": "Internal server error"}, 500
+    total, entries = db.search(
+        collection, filters, projection=LIST_PROJECTION, page=page, page_size=page_size
+    )
+    return {
+        "total_documents": total,
+        "entries": entries,
+        "countries": collection.distinct("country"),
+        "years": [
+            int(year)
+            for year in collection.distinct("startYear")
+            if year is not None and str(year).isdigit()
+        ],
+    }, 200
