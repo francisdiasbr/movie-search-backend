@@ -1,6 +1,7 @@
 import logging
 
 import anthropic
+from pydantic import ValidationError
 
 import db
 from config import ANTHROPIC_API_KEY, KEYWORDS_COLLECTION, SUGGESTION_MODEL, get_mongo_collection
@@ -70,7 +71,10 @@ def suggest_movies_by_keywords(keywords):
     try:
         response = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY).messages.parse(
             model=SUGGESTION_MODEL,
-            max_tokens=4096,
+            # Thinking tokens share this budget with the answer; too low a value
+            # truncates the JSON mid-string and the schema validation fails.
+            max_tokens=16000,
+            output_config={"effort": "low"},
             system=SUGGESTION_SYSTEM_PROMPT,
             messages=[
                 {
@@ -83,5 +87,10 @@ def suggest_movies_by_keywords(keywords):
     except anthropic.APIError as e:
         logger.error("Claude suggestion failed: %s", e)
         return error("Falha ao gerar sugestões de filmes", 502)
+    except ValidationError as e:
+        # The answer came back but does not fit MovieSuggestions (truncated or
+        # off-schema); the client can simply try again.
+        logger.error("Claude suggestion did not match the schema: %s", e)
+        return error("A sugestão veio em formato inválido, tente novamente", 502)
 
     return {"data": response.parsed_output.model_dump()}, 200
