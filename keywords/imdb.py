@@ -50,8 +50,9 @@ def find_imdb_title(title, year, original_title=None):
 
     A candidate must be a title (not a person), be a movie-like type and sit
     within YEAR_TOLERANCE of the suggested year. Among those, an exact
-    (normalized) title match wins; otherwise the first one is taken, since
-    the API already ranks by relevance.
+    (normalized) title match wins; without one, the suggestion is accepted
+    only when a single candidate remains, otherwise it is dropped as
+    ambiguous.
     """
     wanted = {_normalize(title)}
     if original_title:
@@ -76,5 +77,13 @@ def find_imdb_title(title, year, original_title=None):
         return None
 
     exact = [item for item in candidates if _normalize(item.get("l")) in wanted]
-    match = (exact or candidates)[0]
+    if exact:
+        match = exact[0]
+    elif len(candidates) == 1:
+        # Only one title of that year came back for the query: IMDB's own
+        # localized title probably differs from the one the model wrote.
+        match = candidates[0]
+    else:
+        logger.info("Ambiguous IMDB match for %r (%s): %s", title, year, [c.get("l") for c in candidates])
+        return None
     return {"tconst": match["id"], "title": match.get("l") or title, "year": match.get("y")}
