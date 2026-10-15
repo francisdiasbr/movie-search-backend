@@ -15,7 +15,7 @@ No test suite exists. Black is configured in `.pre-commit-config.yaml`.
 
 ## Environment
 
-Copy `.env.example` to `.env`. Only `MONGODB_CONNECTION_STRING_ATLAS` and `MONGODB_DATABASE` are needed to boot; AWS, OpenAI, RapidAPI and OpenSubtitles keys are validated by the routes that use them. There is no local MongoDB: Atlas is the only database.
+Copy `.env.example` to `.env`. Only `MONGODB_CONNECTION_STRING_ATLAS` and `MONGODB_DATABASE` are needed to boot; AWS, Anthropic, RapidAPI and OpenSubtitles keys are validated by the routes that use them. There is no local MongoDB: Atlas is the only database.
 
 ## Architecture
 
@@ -25,14 +25,14 @@ Flask 3 + flask-restx (Swagger, request validation) + pymongo. Entrypoint is `ap
 
 ```
 favorites/      routes.py, controller.py, scrapper.py (IMDB via Playwright), external_requests.py (RapidAPI, OpenSubtitles)
-keywords/       routes.py, controller.py, schemas.py (pydantic schema for the OpenAI structured output)
+keywords/       routes.py, controller.py, schemas.py (pydantic schema for the Claude structured output)
 main_images/    routes.py, controller.py (S3 upload/list/delete + metadata in Mongo)
 write_review/   routes.py, controller.py
 ```
 
 - `routes.py` holds the flask-restx `Namespace`, the Swagger models and thin `Resource` classes that read the body with `utils.json_body()` (always a dict) and call the controller. No business logic there.
 - `controller.py` returns `(body, status)` tuples. Success bodies wrap the payload in `data` (or `entries` + `total_documents` for lists). Every error goes through `utils.error(message, status)`, so the body is always `{ "message": ... }`.
-- Controllers do not wrap Mongo calls in `try/except`: flask-restx already answers 500 and logs the traceback for unhandled exceptions. Only calls to external services (S3, OpenAI) catch their own errors to give a specific message.
+- Controllers do not wrap Mongo calls in `try/except`: flask-restx already answers 500 and logs the traceback for unhandled exceptions. Only calls to external services (S3, Claude) catch their own errors to give a specific message.
 - Collection names live in `config.py` (`FAVORITES_COLLECTION`, ...); each controller has a one-line accessor such as `reviews()`.
 
 ### Shared infrastructure

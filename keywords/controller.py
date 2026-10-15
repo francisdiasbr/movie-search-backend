@@ -1,9 +1,9 @@
 import logging
 
-from openai import OpenAI
+import anthropic
 
 import db
-from config import KEYWORDS_COLLECTION, OPENAI_API_KEY, get_mongo_collection
+from config import ANTHROPIC_API_KEY, KEYWORDS_COLLECTION, get_mongo_collection
 from keywords.schemas import MovieSuggestions
 from utils import error
 
@@ -61,23 +61,30 @@ SUGGESTION_USER_PROMPT = (
 )
 
 
+SUGGESTION_MODEL = "claude-opus-5-5"
+
+
 def suggest_movies_by_keywords(keywords):
-    """Asks OpenAI for up to five movies that literally feature the keywords."""
+    """Asks Claude for up to five movies that literally feature the keywords.
+
+    `output_format` makes the answer come back already validated against the
+    MovieSuggestions pydantic schema.
+    """
     try:
-        response = OpenAI(api_key=OPENAI_API_KEY).beta.chat.completions.parse(
-            model="gpt-4o",
-            temperature=0.7,
+        response = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY).messages.parse(
+            model=SUGGESTION_MODEL,
+            max_tokens=4096,
+            system=SUGGESTION_SYSTEM_PROMPT,
             messages=[
-                {"role": "system", "content": SUGGESTION_SYSTEM_PROMPT},
                 {
                     "role": "user",
                     "content": SUGGESTION_USER_PROMPT.format(keywords=", ".join(keywords)),
-                },
+                }
             ],
-            response_format=MovieSuggestions,
+            output_format=MovieSuggestions,
         )
-    except Exception as e:
-        logger.error("OpenAI suggestion failed: %s", e)
+    except anthropic.APIError as e:
+        logger.error("Claude suggestion failed: %s", e)
         return error("Falha ao gerar sugestões de filmes", 502)
 
-    return {"data": response.choices[0].message.parsed.model_dump()}, 200
+    return {"data": response.parsed_output.model_dump()}, 200

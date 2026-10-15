@@ -14,7 +14,7 @@ Este projeto, construído em Python, é o backend do projeto [Movie-Search](http
 
 ## 🔌 Integrações com APIs Externas
 
-- OpenAI: Integração com serviços de IA
+- Anthropic (Claude): sugestão de filmes a partir de palavras-chave
 - Spotify: Integração com streaming de música
 - AWS: Serviços em nuvem da Amazon
 - Open Subtitles: Acesso a base de legendas

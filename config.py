@@ -54,8 +54,8 @@ KEYWORDS_COLLECTION = "favorites_keywords"
 MAIN_IMAGES_COLLECTION = "main-images"
 BLOGPOSTS_COLLECTION = "blogposts"
 
-# Configurações da OpenAI
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Anthropic (sugestão de filmes por palavras-chave)
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 # Configurações da RapidAPI
 RAPIDAPI_API_KEY = os.getenv("RAPIDAPI_API_KEY")

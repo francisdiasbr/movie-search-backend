@@ -1,7 +1,7 @@
-"""Structured output schema for the OpenAI movie suggestions.
+"""Structured output schema for the Claude movie suggestions.
 
-Passed as `response_format` in the chat completion, so the model is forced to
-answer in exactly this shape. It is a contract with OpenAI, not with Mongo -
+Passed as `output_format` to `messages.parse`, so the model is forced to
+answer in exactly this shape. It is a contract with the model, not with Mongo -
 the Swagger counterpart lives in routes.py as a flask-restx model.
 """
 
