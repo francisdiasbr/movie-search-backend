@@ -5,7 +5,13 @@ import boto3
 import re
 from botocore.exceptions import ClientError
 
-from config import get_mongo_collection, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+from config import (
+    AWS_ACCESS_KEY_ID,
+    AWS_REGION,
+    AWS_SECRET_ACCESS_KEY,
+    S3_BUCKET,
+    get_mongo_collection,
+)
 from utils import optimize_image
 
 logger = logging.getLogger(__name__)
@@ -13,6 +19,26 @@ logger = logging.getLogger(__name__)
 
 COLLECTION_NAME = "main-images"
 MAIN_PREFIX = "main-images"
+
+
+class StorageUnavailable(Exception):
+    """Raised when the AWS credentials are missing. app.py turns it into a 503."""
+
+
+def s3_client():
+    """S3 client with explicit credentials; the same for upload and delete."""
+    if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
+        raise StorageUnavailable("Credenciais AWS não configuradas")
+    return boto3.client(
+        "s3",
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        region_name=AWS_REGION,
+    )
+
+
+def public_url(tconst, filename):
+    return f"https://{S3_BUCKET}.s3.{AWS_REGION}.amazonaws.com/{MAIN_PREFIX}/{tconst}/{filename}"
 
 
 def get_next_sequential_id(tconst):
@@ -52,10 +78,10 @@ def save_image_metadata(tconst, filename, sequential_id, subtitle_en="", subtitl
         return False
 
 
-def upload_image_to_s3(file, bucket_name, tconst, subtitle_en="", subtitle_pt=""):
-    """Faz upload de um arquivo para um bucket S3 com ID sequencial"""
+def upload_image_to_s3(file, tconst, subtitle_en="", subtitle_pt=""):
+    """Faz upload de um arquivo para o bucket S3 com ID sequencial"""
 
-    s3_client = boto3.client("s3")
+    s3 = s3_client()
 
     # Gera o próximo ID sequencial
     sequential_id = get_next_sequential_id(tconst)
@@ -82,8 +108,8 @@ def upload_image_to_s3(file, bucket_name, tconst, subtitle_en="", subtitle_pt=""
         optimized_file = optimize_image(file, max_width=800, quality=85)
         
         # Faz o upload para o S3
-        s3_client.upload_fileobj(
-            optimized_file, bucket_name, object_name, ExtraArgs={"ContentType": content_type}
+        s3.upload_fileobj(
+            optimized_file, S3_BUCKET, object_name, ExtraArgs={"ContentType": content_type}
         )
         
         # Adiciona tags com as legendas
@@ -91,8 +117,8 @@ def upload_image_to_s3(file, bucket_name, tconst, subtitle_en="", subtitle_pt=""
             sanitized_subtitle_en = sanitize_tag_value(subtitle_en)
             sanitized_subtitle_pt = sanitize_tag_value(subtitle_pt)
             
-            s3_client.put_object_tagging(
-                Bucket=bucket_name,
+            s3.put_object_tagging(
+                Bucket=S3_BUCKET,
                 Key=object_name,
                 Tagging={
                     "TagSet": [
@@ -116,7 +142,7 @@ def upload_image_to_s3(file, bucket_name, tconst, subtitle_en="", subtitle_pt=""
         return {"status": 500, "message": "Erro ao fazer upload para S3"}, 500
 
 
-def get_all_image_urls(bucket_name, tconst):
+def get_all_image_urls(tconst):
     """Retorna todas as URLs públicas diretas e legendas para imagens associadas a um tconst"""
     collection = get_mongo_collection(COLLECTION_NAME)
     
@@ -133,10 +159,8 @@ def get_all_image_urls(bucket_name, tconst):
             subtitle_en = image_doc.get("subtitle_en", "")
             subtitle_pt = image_doc.get("subtitle_pt", "")
             
-            url = f"https://{bucket_name}.s3.us-east-2.amazonaws.com/{MAIN_PREFIX}/{tconst}/{filename}"
-            
             images.append({
-                "url": url,
+                "url": public_url(tconst, filename),
                 "filename": filename,
                 "sequential_id": sequential_id,
                 "subtitle_en": subtitle_en,
@@ -149,22 +173,16 @@ def get_all_image_urls(bucket_name, tconst):
         return {"status": 500, "message": "Erro ao listar imagens"}, 500
 
 
-def delete_image_from_s3(bucket_name, tconst, filename):
-    """Deleta uma imagem específica de um bucket S3 e seus metadados"""
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-        region_name="us-east-2",
-    )
-    
+def delete_image_from_s3(tconst, filename):
+    """Deleta uma imagem específica do bucket S3 e seus metadados"""
+    s3 = s3_client()
     collection = get_mongo_collection(COLLECTION_NAME)
 
     object_name = f"{MAIN_PREFIX}/{tconst}/{filename}"
 
     try:
         # Remove do S3
-        s3_client.delete_object(Bucket=bucket_name, Key=object_name)
+        s3.delete_object(Bucket=S3_BUCKET, Key=object_name)
         
         # Remove metadados do MongoDB
         collection.delete_one({

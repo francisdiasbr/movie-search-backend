@@ -3,7 +3,7 @@ import logging
 
 from pymongo import ReturnDocument
 
-from config import get_mongo_collection
+from config import DatabaseUnavailable, get_mongo_collection
 from utils import sanitize_movie_data, sanitize_filters
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,8 @@ def create_and_save_movie_review(tconst, review_data):
         review_document["_id"] = str(collection.insert_one(review_document).inserted_id)
         logger.info("Review created for %s", tconst)
         return {"data": review_document}, 201
+    except DatabaseUnavailable:
+        raise
     except Exception as e:
         logger.error("Could not create review for %s: %s", tconst, e)
         return {"status": 500, "message": str(e)}, 500
@@ -64,6 +66,8 @@ def get_movie_review(tconst):
         else:
             return {"message": "No reviews found for this movie"}, 404
 
+    except DatabaseUnavailable:
+        raise
     except Exception as e:
         logger.error("Could not fetch review of %s: %s", tconst, e)
         return {"message": "Internal server error"}, 500
@@ -103,6 +107,8 @@ def edit_movie_review(tconst, request_data):
         updated_review["_id"] = str(updated_review["_id"])
         return {"data": updated_review}, 200
 
+    except DatabaseUnavailable:
+        raise
     except Exception as e:
         logger.error("Could not update review of %s: %s", tconst, e)
         return {"message": "Failed to update review"}, 500
@@ -115,17 +121,19 @@ def delete_movie_review(tconst):
         if reviews().delete_one({"tconst": tconst}).deleted_count == 0:
             return {"status": 404, "message": "Review not found"}, 404
         return {"message": "Review deleted successfully"}, 200
+    except DatabaseUnavailable:
+        raise
     except Exception as e:
         logger.error("Could not delete review of %s: %s", tconst, e)
         return {"status": 500, "message": "Failed to delete review"}, 500
 
 
 # Recupera as resenhas criadas
-def get_created_reviews(filters={}, sorters=["_id", -1]):
+def get_created_reviews(filters=None, sorters=("_id", -1)):
     collection = reviews()
 
     try:
-        sanitized_filters = sanitize_filters(filters)
+        sanitized_filters = sanitize_filters(filters or {})
 
         total_documents = collection.count_documents(sanitized_filters)
         items = list(
@@ -138,6 +146,8 @@ def get_created_reviews(filters={}, sorters=["_id", -1]):
             sanitize_movie_data(item)
 
         return {"total_documents": total_documents, "entries": items}, 200
+    except DatabaseUnavailable:
+        raise
     except Exception as e:
         logger.error("Could not search reviews: %s", e)
         return {"status": 500, "message": "Internal server error"}, 500

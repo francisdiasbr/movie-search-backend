@@ -1,8 +1,10 @@
-import requests
-from config import RAPIDAPI_API_KEY, OPEN_SUBTITLES_API_KEY
-import urllib3
+import logging
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+import requests
+
+from config import HTTP_TIMEOUT, OPEN_SUBTITLES_API_KEY, RAPIDAPI_API_KEY
+
+logger = logging.getLogger(__name__)
 
 
 def get_magnet_link(tconst):
@@ -17,32 +19,23 @@ def get_magnet_link(tconst):
     }
 
     try:
-        response = requests.get(search_url, headers=headers, verify=False)
+        response = requests.get(search_url, headers=headers, timeout=HTTP_TIMEOUT)
         response.raise_for_status()
         data = response.json()
-
-        # Verifica se há dados na resposta e se é uma lista não vazia
-        if data and isinstance(data.get("data"), list) and data["data"]:
-            # Ordena os resultados por número de seeds (mais seeds primeiro)
-            sorted_results = sorted(
-                data["data"], key=lambda x: int(x.get("seeds", 0)), reverse=True
-            )
-
-            # Pega o primeiro resultado (com mais seeds)
-            best_result = sorted_results[0]
-            magnet_link = best_result.get("magnet")
-
-            if magnet_link:
-                return magnet_link
-
-        return None
-
     except requests.exceptions.RequestException as e:
-        print(f"Request error: {str(e)}")
+        logger.warning("Magnet link request for %s failed: %s", tconst, e)
         return None
     except ValueError as e:
-        print(f"JSON parsing error: {str(e)}")
+        logger.warning("Magnet link response for %s is not JSON: %s", tconst, e)
         return None
+
+    results = data.get("data") if isinstance(data, dict) else None
+    if not isinstance(results, list) or not results:
+        return None
+
+    # The result with the most seeds wins.
+    best_result = max(results, key=lambda item: int(item.get("seeds", 0) or 0))
+    return best_result.get("magnet") or None
 
 
 def get_subtitle_url(tconst):
@@ -60,22 +53,17 @@ def get_subtitle_url(tconst):
     }
 
     try:
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, headers=headers, params=params, timeout=HTTP_TIMEOUT)
         response.raise_for_status()
-
         data = response.json()
-
-        if data and "data" in data and len(data["data"]) > 0:
-            # Pega a URL do primeiro resultado
-            first_subtitle = data["data"][0]
-            subtitle_url = first_subtitle.get("attributes", {}).get("url")
-            return subtitle_url
-
-        return None
-
     except requests.exceptions.RequestException as e:
-        print(f"Request error: {str(e)}")
+        logger.warning("Subtitle request for %s failed: %s", tconst, e)
         return None
     except ValueError as e:
-        print(f"JSON parsing error: {str(e)}")
+        logger.warning("Subtitle response for %s is not JSON: %s", tconst, e)
         return None
+
+    results = data.get("data") if isinstance(data, dict) else None
+    if not results:
+        return None
+    return results[0].get("attributes", {}).get("url") or None

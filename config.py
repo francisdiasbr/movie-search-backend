@@ -1,65 +1,63 @@
+import logging
 import os
-from pymongo import MongoClient
-from dotenv import load_dotenv
 
-# Carrega as variáveis de ambiente do arquivo .env
+from dotenv import load_dotenv
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 MONGODB_CONNECTION_STRING_ATLAS = os.getenv("MONGODB_CONNECTION_STRING_ATLAS")
 MONGODB_CONNECTION_STRING_LOCAL = os.getenv("MONGODB_CONNECTION_STRING_LOCAL")
 MONGODB_DATABASE = os.getenv("MONGODB_DATABASE")
 
 
+class DatabaseUnavailable(Exception):
+    """Raised when MongoDB cannot be reached. app.py turns it into a 503."""
+
+
 # Clientes MongoDB reutilizáveis (singleton)
 _mongo_client_atlas = None
 _mongo_client_local = None
+
 
 def get_mongo_client(use_atlas=True):
     """Retorna cliente MongoDB reutilizável (singleton)"""
     global _mongo_client_atlas, _mongo_client_local
     connection_type = "Atlas" if use_atlas else "Local"
-    
-    # Retorna cliente existente se já estiver criado
+
     if use_atlas and _mongo_client_atlas:
         return _mongo_client_atlas
     if not use_atlas and _mongo_client_local:
         return _mongo_client_local
-    
-    # Cria novo cliente apenas se não existir
+
+    connection_string = (
+        MONGODB_CONNECTION_STRING_ATLAS if use_atlas else MONGODB_CONNECTION_STRING_LOCAL
+    )
     try:
-        if use_atlas:
-            client = MongoClient(MONGODB_CONNECTION_STRING_ATLAS)
-            client.server_info()  # Testa conexão
-            _mongo_client_atlas = client
-            print(f"Conexão com MongoDB {connection_type} estabelecida com sucesso (reutilizável)")
-            return _mongo_client_atlas
-        else:
-            client = MongoClient(MONGODB_CONNECTION_STRING_LOCAL)
-            client.server_info()  # Testa conexão
-            _mongo_client_local = client
-            print(f"Conexão com MongoDB {connection_type} estabelecida com sucesso (reutilizável)")
-            return _mongo_client_local
-    except Exception as e:
-        print(f"Erro ao conectar ao MongoDB {connection_type}: {e}")
-        return None
+        client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
+        client.server_info()  # Testa conexão
+    except PyMongoError as e:
+        logger.error("Could not connect to MongoDB %s: %s", connection_type, e)
+        raise DatabaseUnavailable(f"MongoDB {connection_type} indisponível") from e
+
+    logger.info("MongoDB %s connection established", connection_type)
+    if use_atlas:
+        _mongo_client_atlas = client
+    else:
+        _mongo_client_local = client
+    return client
 
 
-# Função para obter uma coleção do MongoDB
 def get_mongo_collection(name, use_atlas=True):
-    """Retorna uma coleção MongoDB, reutilizando conexões"""
-    try:
-        client = get_mongo_client(use_atlas)
-        if client:
-            db = client[MONGODB_DATABASE]
-            return db[name]
-        else:
-            print(
-                f"Não foi possível obter cliente MongoDB {'Atlas' if use_atlas else 'Local'}"
-            )
-            return None
-    except Exception as e:
-        print(f"Erro ao obter coleção {name}: {e}")
-        return None
+    """Retorna uma coleção MongoDB, reutilizando conexões.
+
+    Raises DatabaseUnavailable when the server cannot be reached, so callers
+    never have to check for None.
+    """
+    return get_mongo_client(use_atlas)[MONGODB_DATABASE][name]
 
 
 # Configurações da OpenAI
@@ -68,11 +66,15 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # Configurações da RapidAPI
 RAPIDAPI_API_KEY = os.getenv("RAPIDAPI_API_KEY")
 
-# Verifica se as credenciais AWS estão carregadas
+# AWS / S3. Only the images feature needs these; it validates them on use so
+# the rest of the API still boots without them.
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-if not AWS_ACCESS_KEY_ID or not AWS_SECRET_ACCESS_KEY:
-    raise Exception("Credenciais AWS não foram carregadas corretamente.")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-2")
+S3_BUCKET = os.getenv("S3_BUCKET", "themoviesearch")
+
+# Timeout for every outbound HTTP call that is not the IMDB scraper.
+HTTP_TIMEOUT = 15
 
 # Configurações da OpenSubtitles
 OPEN_SUBTITLES_API_KEY = os.getenv("OPEN_SUBTITLES_API_KEY")

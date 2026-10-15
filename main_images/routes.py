@@ -26,9 +26,7 @@ class ImageOperations(Resource):
         data = request.form
         subtitle_en = data.get("subtitle_en", "")
         subtitle_pt = data.get("subtitle_pt", "")
-        
-        BUCKET_NAME = "themoviesearch"
-        return upload_image_to_s3(file, BUCKET_NAME, tconst, subtitle_en, subtitle_pt)
+        return upload_image_to_s3(file, tconst, subtitle_en, subtitle_pt)
 
     @api.doc("get_all_image_urls")
     @api.response(200, "URLs geradas com sucesso")
@@ -36,8 +34,7 @@ class ImageOperations(Resource):
     @api.response(500, "Erro interno do servidor")
     def get(self, tconst):
         """Gera todas as URLs públicas diretas para imagens associadas a um tconst"""
-        BUCKET_NAME = "themoviesearch"
-        return get_all_image_urls(BUCKET_NAME, tconst)
+        return get_all_image_urls(tconst)
 
 
 @api.route("/<string:tconst>/<string:filename>")
@@ -47,9 +44,8 @@ class ImageDetailOperations(Resource):
     @api.response(404, "Imagem não encontrada")
     @api.response(500, "Erro interno do servidor")
     def delete(self, tconst, filename):
-        """Deleta uma imagem específica de um bucket S3"""
-        BUCKET_NAME = "themoviesearch"
-        return delete_image_from_s3(BUCKET_NAME, tconst, filename)
+        """Deleta uma imagem específica do bucket S3"""
+        return delete_image_from_s3(tconst, filename)
 
 
 main_images_bp.api = api

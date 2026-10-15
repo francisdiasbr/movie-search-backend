@@ -1,11 +1,9 @@
-from flask import request
 import logging
-import requests
+from datetime import datetime
+
 from pymongo import ReturnDocument
 
 from config import get_mongo_collection
-import time
-from datetime import datetime
 
 from favorites.scrapper import (
     clear_soup_cache,
@@ -79,9 +77,6 @@ def favorite_movie(tconst):
         return {"data": "tconst is required"}, 400
 
     collection = get_mongo_collection(COLLECTION)
-    if collection is None:
-        return {"status": 503, "message": "Banco de dados Atlas indisponível"}, 503
-
     if collection.find_one({"tconst": tconst}):
         return {"data": "Movie already listed"}, 409
 
@@ -110,11 +105,10 @@ def favorite_movie(tconst):
 
 # Recupera um filme favoritado
 def get_favorited_movie(tconst):
-    collection = get_mongo_collection("favoritelist")
-
     if not tconst:
         return {"data": "tconst is required"}, 400
 
+    collection = get_mongo_collection(COLLECTION)
     try:
         movie = collection.find_one({"tconst": tconst})
         if movie:
@@ -123,7 +117,7 @@ def get_favorited_movie(tconst):
         else:
             return {"data": "Movie not found"}, 404
     except Exception as e:
-        print(f"{e}")
+        logger.error("Could not fetch %s: %s", tconst, e)
         return {"data": "Failed to retrieve movie"}, 500
 
 
@@ -220,10 +214,12 @@ LIST_PROJECTION = {
 
 # Recupera os filmes favoritados
 def get_favorited_movies(
-    filters={}, sorters=["_id", -1], page=1, page_size=0, search_term=""
+    filters=None, sorters=("_id", -1), page=1, page_size=0, search_term=""
 ):
-    collection = get_mongo_collection("favoritelist")
+    collection = get_mongo_collection(COLLECTION)
 
+    # Copied so the caller's dict (the request body) is never mutated.
+    filters = dict(filters or {})
     search_term = search_term or filters.get("search_term") or filters.get("tconst")
 
     # Filtra `search_term` no campo `tconst` ou `primaryTitle`
@@ -244,13 +240,13 @@ def get_favorited_movies(
     # Sanitiza os filtros para garantir que valores $regex sejam strings
     filters = sanitize_filters(filters)
 
-    unique_countries = collection.distinct("country")
-    unique_years = [
-        int(year) for year in collection.distinct("startYear") 
-        if year is not None and str(year).isdigit()
-    ]
-
     try:
+        unique_countries = collection.distinct("country")
+        unique_years = [
+            int(year) for year in collection.distinct("startYear")
+            if year is not None and str(year).isdigit()
+        ]
+
         total_documents = collection.count_documents(filters)
         skip = (page - 1) * page_size if page_size else 0
         query = collection.find(filters, LIST_PROJECTION).sort(sorters[0], sorters[1]).skip(skip)
@@ -269,5 +265,5 @@ def get_favorited_movies(
             "years": unique_years,
         }, 200
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error("Could not search favorites: %s", e)
         return {"status": 500, "message": "Internal server error"}, 500

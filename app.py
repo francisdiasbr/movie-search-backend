@@ -10,7 +10,8 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 
-import config
+from config import DatabaseUnavailable
+from main_images.controller import StorageUnavailable
 from favorites.routes import favorites_bp
 from keywords.routes import keywords_bp
 from main_images.routes import main_images_bp
@@ -57,6 +58,18 @@ api = Api(
     serve_challenge_on_401=True,
     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
 )
+
+
+@api.errorhandler(DatabaseUnavailable)
+def handle_database_unavailable(error):
+    """Every controller reaches Mongo through get_mongo_collection, so this is
+    the single place that answers when the database is down."""
+    return {"status": 503, "message": str(error)}, 503
+
+
+@api.errorhandler(StorageUnavailable)
+def handle_storage_unavailable(error):
+    return {"status": 503, "message": str(error)}, 503
 
 
 # Root route
