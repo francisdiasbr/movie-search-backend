@@ -3,7 +3,7 @@ import logging
 import anthropic
 
 import db
-from config import ANTHROPIC_API_KEY, KEYWORDS_COLLECTION, get_mongo_collection
+from config import ANTHROPIC_API_KEY, KEYWORDS_COLLECTION, SUGGESTION_MODEL, get_mongo_collection
 from keywords.schemas import MovieSuggestions
 from utils import error
 
@@ -59,9 +59,6 @@ SUGGESTION_USER_PROMPT = (
     "Se não houver filmes suficientes, retorne apenas os que realmente se encaixam. "
     "Não force relação!"
 )
-
-
-SUGGESTION_MODEL = "claude-opus-5-5"
 
 
 def suggest_movies_by_keywords(keywords):
