@@ -22,8 +22,8 @@ Este projeto, construído em Python, é o backend do projeto [Movie-Search](http
 ## 🖥️ Ambiente de Desenvolvimento
 
 - Servidor: execução em ambiente local
-- Swagger (documentação da API): http://localhost:5001/docs
-- Banco de Dados: MongoDB (em execução em um nível gratuito. 512MB de armazenamento. MongoDB Compass para local + MongoDB Atlas para nuvem)
+- Swagger (documentação da API): http://localhost:5000/docs
+- Banco de Dados: MongoDB Atlas (nível gratuito, 512MB)
 
 ## Base de dados
 

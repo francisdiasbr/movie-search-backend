@@ -10,7 +10,6 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 MONGODB_CONNECTION_STRING_ATLAS = os.getenv("MONGODB_CONNECTION_STRING_ATLAS")
-MONGODB_CONNECTION_STRING_LOCAL = os.getenv("MONGODB_CONNECTION_STRING_LOCAL")
 MONGODB_DATABASE = os.getenv("MONGODB_DATABASE")
 
 
@@ -18,46 +17,34 @@ class DatabaseUnavailable(Exception):
     """Raised when MongoDB cannot be reached. app.py turns it into a 503."""
 
 
-# Clientes MongoDB reutilizáveis (singleton)
-_mongo_client_atlas = None
-_mongo_client_local = None
+# Reused across requests: MongoClient keeps its own connection pool.
+_mongo_client = None
 
 
-def get_mongo_client(use_atlas=True):
-    """Retorna cliente MongoDB reutilizável (singleton)"""
-    global _mongo_client_atlas, _mongo_client_local
-    connection_type = "Atlas" if use_atlas else "Local"
+def get_mongo_client():
+    global _mongo_client
+    if _mongo_client:
+        return _mongo_client
 
-    if use_atlas and _mongo_client_atlas:
-        return _mongo_client_atlas
-    if not use_atlas and _mongo_client_local:
-        return _mongo_client_local
-
-    connection_string = (
-        MONGODB_CONNECTION_STRING_ATLAS if use_atlas else MONGODB_CONNECTION_STRING_LOCAL
-    )
     try:
-        client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
+        client = MongoClient(MONGODB_CONNECTION_STRING_ATLAS, serverSelectionTimeoutMS=5000)
         client.server_info()  # Testa conexão
     except PyMongoError as e:
-        logger.error("Could not connect to MongoDB %s: %s", connection_type, e)
-        raise DatabaseUnavailable(f"MongoDB {connection_type} indisponível") from e
+        logger.error("Could not connect to MongoDB Atlas: %s", e)
+        raise DatabaseUnavailable("MongoDB Atlas indisponível") from e
 
-    logger.info("MongoDB %s connection established", connection_type)
-    if use_atlas:
-        _mongo_client_atlas = client
-    else:
-        _mongo_client_local = client
+    logger.info("MongoDB Atlas connection established")
+    _mongo_client = client
     return client
 
 
-def get_mongo_collection(name, use_atlas=True):
-    """Retorna uma coleção MongoDB, reutilizando conexões.
+def get_mongo_collection(name):
+    """Retorna uma coleção MongoDB, reutilizando a conexão.
 
     Raises DatabaseUnavailable when the server cannot be reached, so callers
     never have to check for None.
     """
-    return get_mongo_client(use_atlas)[MONGODB_DATABASE][name]
+    return get_mongo_client()[MONGODB_DATABASE][name]
 
 
 # Configurações da OpenAI

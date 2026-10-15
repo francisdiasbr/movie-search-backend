@@ -18,12 +18,6 @@
 
 ### 1. Configuração do Ambiente
 
-**Opção 1 - Script automatizado (recomendado):**
-```bash
-initialize
-```
-
-**Opção 2 - Manual:**
 ```bash
 python -m venv venv
 source venv/bin/activate  # No Windows: venv\Scripts\activate
@@ -47,7 +41,7 @@ separadamente do pacote Python:
 
 ### 3. Variáveis de Ambiente
 
-Configure as variáveis de ambiente: crie um arquivo .env na raiz do projeto com as variáveis de ambiente necessárias veja o modelo em env.example.
+Crie um arquivo `.env` na raiz do projeto a partir do modelo em `.env.example`. Só o MongoDB Atlas é obrigatório para a API subir; as chaves de AWS, OpenAI, RapidAPI e OpenSubtitles são exigidas apenas pelas rotas que as usam, que respondem `503` quando faltam.
 
 
 
@@ -111,8 +105,6 @@ ele desistir.
 
 O projeto inclui scripts para facilitar o desenvolvimento:
 
-- **`initialize`**: Setup completo do projeto (cria venv, instala dependências e inicia servidor)
-- **`runserver`**: Inicia o servidor rapidamente (sem reinstalar dependências)
 - **`./verify_imdb.sh`**: Testa a sessão do IMDB, renova se necessário e sobe o servidor
 - **`python imdb_verify.py`**: Só a janela de verificação manual, sem mexer no servidor
 
