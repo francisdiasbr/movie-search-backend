@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint
 from flask_restx import Namespace, Resource, fields
 
 from favorites.controller import (
@@ -8,6 +8,7 @@ from favorites.controller import (
     get_favorited_movie,
     get_favorited_movies,
 )
+from utils import json_body
 
 favorites_bp = Blueprint("favorites", __name__)
 api = Namespace("favorites", description="Operações relacionadas aos filmes favoritos")
@@ -55,12 +56,9 @@ class FavoriteMovieSearch(Resource):
     @api.doc("search_favorite_movies")
     @api.expect(favorite_search_model)
     @api.response(200, "Sucesso")
-    @api.response(400, "Dados de entrada inválidos")
     def post(self):
         """Pesquisa filmes favoritados"""
-        request_data = request.get_json(silent=True)
-        if not isinstance(request_data, dict):
-            return {"message": "Invalid input data"}, 400
+        request_data = json_body()
         return get_favorited_movies(
             filters=request_data.get("filters", {}),
             page=request_data.get("page", 1),
@@ -92,7 +90,7 @@ class FavoriteMovie(Resource):
     @api.response(404, "Filme não encontrado")
     def put(self, tconst):
         """Atualiza um filme favoritado"""
-        return edit_favorited_movie(tconst, request.get_json(silent=True))
+        return edit_favorited_movie(tconst, json_body())
 
     @api.doc("delete_favorite_movie")
     @api.response(200, "Filme removido com sucesso")

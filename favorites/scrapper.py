@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import atexit
+import functools
 import logging
 import os
 import queue
@@ -176,56 +177,69 @@ def get_wikipedia_url(movie_title):
     return url if response.status_code == 200 else None
 
 
-def get_movie_sm_plot(tconst):
-    soup = fetch_soup(tconst)
-    if not soup:
-        return None
+def imdb_page(path=""):
+    """Loads the IMDB page `path` of the tconst and hands the soup to the scraper.
 
-    plot_span = soup.find("span", {"data-testid": "plot-xs_to_m"})
-    return plot_span.get_text() if plot_span else None
+    The scraper is not called when the page could not be loaded, so it never
+    has to check for a missing soup.
+    """
 
+    def decorator(scraper):
+        @functools.wraps(scraper)
+        def wrapper(tconst):
+            soup = fetch_soup(tconst, path)
+            return scraper(soup, tconst) if soup else None
 
-def get_movie_country(tconst):
-    soup = fetch_soup(tconst)
-    if not soup:
-        return None
+        return wrapper
 
-    details = soup.find("div", {"data-testid": "title-details-section"})
-    origin = details.find("li", {"data-testid": "title-details-origin"}) if details else None
-    inline_list = origin.find("ul", {"class": "ipc-inline-list"}) if origin else None
-    link = inline_list.find("a") if inline_list else None
-    return link.get_text(strip=True) if link else None
+    return decorator
 
 
-def get_movie_trivia(tconst):
-    soup = fetch_soup(tconst, "trivia")
-    if not soup:
-        return None
+def _text(node, separator=""):
+    return node.get_text(separator=separator, strip=True) if node else None
 
+
+def _texts(nodes):
+    return [_text(node) for node in nodes if node] or None
+
+
+@imdb_page()
+def get_movie_sm_plot(soup, tconst):
+    return _text(soup.find("span", {"data-testid": "plot-xs_to_m"}))
+
+
+@imdb_page()
+def get_movie_country(soup, tconst):
+    return _text(
+        soup.select_one(
+            "[data-testid='title-details-section'] "
+            "[data-testid='title-details-origin'] ul.ipc-inline-list a"
+        )
+    )
+
+
+@imdb_page("trivia")
+def get_movie_trivia(soup, tconst):
     entries = [
-        div.get_text(separator=" ", strip=True)
+        _text(div, separator=" ")
         for div in soup.find_all("div", {"class": "ipc-html-content-inner-div"})[:5]
     ]
-    return "\n\n".join(entries) or None
+    return "\n\n".join(entry for entry in entries if entry) or None
 
 
-def get_movie_quote(tconst):
-    soup = fetch_soup(tconst, "quotes")
-    if not soup:
-        return None
-
+@imdb_page("quotes")
+def get_movie_quote(soup, tconst):
     first = soup.find("div", {"class": "ipc-html-content-inner-div"})
-    quote = first.find("ul") if first else None
-    return quote.get_text(separator=" ", strip=True) if quote else None
+    return _text(first.find("ul") if first else None, separator=" ")
 
 
-def get_movie_plot_keywords(tconst):
-    soup = fetch_soup(tconst, "keywords")
-    if not soup:
-        return None
-
+@imdb_page("keywords")
+def get_movie_plot_keywords(soup, tconst):
     items = soup.find_all("li", {"data-testid": "list-summary-item"})
-    return [item.find("a").get_text() for item in items if item.find("a")] or None
+    return _texts(item.find("a") for item in items)
+
+
+CREDIT_LINK = "a.ipc-metadata-list-item__list-content-item--link"
 
 
 def _principal_credit(soup, index, tconst):
@@ -242,123 +256,87 @@ def _principal_credit(soup, index, tconst):
     return credits[index]
 
 
-def get_director(tconst):
-    soup = fetch_soup(tconst)
-    if not soup:
-        return None
-
+@imdb_page()
+def get_director(soup, tconst):
     section = _principal_credit(soup, 0, tconst)
-    link = section.find("a", {"class": "ipc-metadata-list-item__list-content-item--link"}) if section else None
-    return link.get_text(strip=True) if link else None
+    return _text(section.select_one(CREDIT_LINK)) if section else None
 
 
-def get_writers(tconst):
-    soup = fetch_soup(tconst)
-    if not soup:
-        return None
-
+@imdb_page()
+def get_writers(soup, tconst):
     section = _principal_credit(soup, 1, tconst)
-    if not section:
-        return None
-
-    links = section.find_all("a", {"class": "ipc-metadata-list-item__list-content-item--link"})
-    return [link.get_text(strip=True) for link in links] or None
+    return _texts(section.select(CREDIT_LINK)) if section else None
 
 
-def get_movie_principal_stars(tconst):
-    soup = fetch_soup(tconst)
-    if not soup:
-        return None
-
+@imdb_page()
+def get_movie_principal_stars(soup, tconst):
     section = _principal_credit(soup, 2, tconst)
-    if not section:
-        return None
-
-    links = section.select(
-        "ul.ipc-inline-list a.ipc-metadata-list-item__list-content-item--link"
-    )
-    if not links:
+    stars = _texts(section.select(f"ul.ipc-inline-list {CREDIT_LINK}")) if section else None
+    if section and not stars:
         logger.warning("No star links on %s", tconst)
-        return None
-
-    return [link.get_text(strip=True) for link in links]
+    return stars
 
 
-def get_movie_genres(tconst):
-    soup = fetch_soup(tconst)
-    if not soup:
-        return None
-
+@imdb_page()
+def get_movie_genres(soup, tconst):
     interests = soup.find("div", {"data-testid": "interests"})
-    if not interests:
-        return None
-
-    spans = interests.find_all("span", {"class": "ipc-chip__text"})
-    return [span.get_text() for span in spans] or None
+    return _texts(interests.find_all("span", {"class": "ipc-chip__text"})) if interests else None
 
 
-def get_movie_title(tconst):
-    soup = fetch_soup(tconst)
-    if soup:
-        h1 = soup.find("h1", {"data-testid": "hero__pageTitle"})
-        if h1:
-            span = h1.find("span", {"data-testid": "hero__primary-text"})
-            if span:
-                return span.get_text(strip=True)
-            return h1.get_text(strip=True)
+def _title_heading(soup, tconst):
+    h1 = soup.find("h1", {"data-testid": "hero__pageTitle"})
+    if not h1:
         logger.warning("No title heading on %s", tconst)
-    return None
+    return h1
 
 
-def get_movie_poster(tconst):
-    soup = fetch_soup(tconst)
-    if not soup:
+@imdb_page()
+def get_movie_title(soup, tconst):
+    h1 = _title_heading(soup, tconst)
+    if not h1:
         return None
+    return _text(h1.find("span", {"data-testid": "hero__primary-text"}) or h1)
 
+
+@imdb_page()
+def get_movie_year(soup, tconst):
+    h1 = _title_heading(soup, tconst)
+    year_list = h1.find_next("ul", {"class": "ipc-inline-list"}) if h1 else None
+    year = _text(year_list.find("li", {"class": "ipc-inline-list__item"}) if year_list else None)
+    if year is None:
+        return None
+    try:
+        return int(year)
+    except ValueError:
+        return year
+
+
+@imdb_page()
+def get_movie_poster(soup, tconst):
     # 1. data-testid no container do hero poster
     for testid in ("hero-media__poster", "hero__poster"):
         container = soup.find(attrs={"data-testid": testid})
-        if container:
-            img = container.find("img")
-            if img and img.get("src"):
-                logger.debug("Poster of %s via data-testid=%s", tconst, testid)
-                return img["src"]
+        img = container.find("img") if container else None
+        if img and img.get("src"):
+            logger.debug("Poster of %s via data-testid=%s", tconst, testid)
+            return img["src"]
 
     # 2. overlay com aria-label contendo "poster" ou "pôster"
     for overlay in soup.find_all("a", class_="ipc-lockup-overlay"):
         label = (overlay.get("aria-label") or "").lower()
         if "poster" in label or "pôster" in label:
             parent = overlay.find_parent()
-            if parent:
-                img = parent.find("img", class_="ipc-image")
-                if img and img.get("src"):
-                    logger.debug("Poster of %s via aria-label", tconst)
-                    return img["src"]
+            img = parent.find("img", class_="ipc-image") if parent else None
+            if img and img.get("src"):
+                logger.debug("Poster of %s via aria-label", tconst)
+                return img["src"]
 
     # 3. primeira ipc-image dentro de ipc-poster
     poster_div = soup.find(class_="ipc-poster")
-    if poster_div:
-        img = poster_div.find("img", class_="ipc-image")
-        if img and img.get("src"):
-            logger.debug("Poster of %s via ipc-poster", tconst)
-            return img["src"]
+    img = poster_div.find("img", class_="ipc-image") if poster_div else None
+    if img and img.get("src"):
+        logger.debug("Poster of %s via ipc-poster", tconst)
+        return img["src"]
 
     logger.warning("No poster found for %s", tconst)
-    return None
-
-
-def get_movie_year(tconst):
-    soup = fetch_soup(tconst)
-    if soup:
-        h1 = soup.find("h1", {"data-testid": "hero__pageTitle"})
-        if h1:
-            ul = h1.find_next("ul", {"class": "ipc-inline-list"})
-            if ul:
-                li = ul.find("li", {"class": "ipc-inline-list__item"})
-                if li:
-                    year_text = li.get_text(strip=True)
-                    try:
-                        return int(year_text)
-                    except ValueError:
-                        return year_text
     return None

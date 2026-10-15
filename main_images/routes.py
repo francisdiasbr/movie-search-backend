@@ -22,11 +22,12 @@ class ImageOperations(Resource):
         if "file" not in request.files:
             return {"message": "Arquivo não encontrado"}, 400
 
-        file = request.files["file"]
-        data = request.form
-        subtitle_en = data.get("subtitle_en", "")
-        subtitle_pt = data.get("subtitle_pt", "")
-        return upload_image_to_s3(file, tconst, subtitle_en, subtitle_pt)
+        return upload_image_to_s3(
+            request.files["file"],
+            tconst,
+            request.form.get("subtitle_en", ""),
+            request.form.get("subtitle_pt", ""),
+        )
 
     @api.doc("get_all_image_urls")
     @api.response(200, "URLs geradas com sucesso")

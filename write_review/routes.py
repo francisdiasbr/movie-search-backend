@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint
 from flask_restx import Namespace, Resource, fields
 
 from write_review.controller import (
@@ -8,6 +8,7 @@ from write_review.controller import (
     get_movie_review,
     get_created_reviews,
 )
+from utils import json_body
 
 write_review_bp = Blueprint("write_review", __name__)
 
@@ -17,13 +18,12 @@ api = Namespace(
 write_review_bp.api = api
 
 
-def unwrap(body):
-    """Accepts the review fields at the top level or inside a `data` envelope.
+def review_body():
+    """The review fields, accepted at the top level or inside a `data` envelope.
 
     The frontend sends them at the top level; older clients wrapped them.
     """
-    if not isinstance(body, dict):
-        return {}
+    body = json_body()
     data = body.get("data")
     return data if isinstance(data, dict) else body
 
@@ -118,7 +118,7 @@ class MovieReview(Resource):
     @api.response(409, "Review already exists")
     def post(self, tconst):
         """Cria uma nova resenha para um filme"""
-        return create_and_save_movie_review(tconst, unwrap(request.get_json()))
+        return create_and_save_movie_review(tconst, review_body())
 
     @api.doc("update_review")
     @api.expect(review_update_input)
@@ -126,7 +126,7 @@ class MovieReview(Resource):
     @api.response(404, "Review not found")
     def put(self, tconst):
         """Atualiza a resenha de um filme específico"""
-        return edit_movie_review(tconst, unwrap(request.get_json()))
+        return edit_movie_review(tconst, review_body())
 
     @api.doc("delete_review")
     @api.response(200, "Review deleted")
@@ -144,8 +144,4 @@ class ReviewSearch(Resource):
     @api.response(400, "Invalid input data")
     def post(self):
         """Busca resenhas com filtros"""
-        request_data = request.get_json() or {}
-
-        return get_created_reviews(
-            filters=request_data.get("filters", {}),
-        )
+        return get_created_reviews(filters=json_body().get("filters"))

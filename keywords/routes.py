@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint
 from flask_restx import Namespace, Resource, fields
 from keywords.controller import (
     add_keyword,
@@ -6,6 +6,7 @@ from keywords.controller import (
     delete_favorited_keyword,
     suggest_movies_by_keywords,
 )
+from utils import json_body
 
 keywords_bp = Blueprint("keywords", __name__)
 api = Namespace(
@@ -73,8 +74,7 @@ class KeywordList(Resource):
     @api.response(400, "Palavra-chave é obrigatória")
     def post(self):
         """Adiciona uma palavra-chave aos favoritos"""
-        request_data = request.get_json(silent=True) or {}
-        return add_keyword(request_data.get("keyword"))
+        return add_keyword(json_body().get("keyword"))
 
 
 @api.route("/<string:keyword>")
@@ -96,8 +96,7 @@ class MovieSuggestions(Resource):
     @api.response(502, "Erro ao gerar sugestões")
     def post(self):
         """Sugere filmes baseado em uma lista de palavras-chave"""
-        request_data = request.get_json(silent=True) or {}
-        keywords = request_data.get("keywords")
+        keywords = json_body().get("keywords")
         if not isinstance(keywords, list) or not keywords:
             return {"message": "Lista de keywords inválida"}, 400
         return suggest_movies_by_keywords(keywords)

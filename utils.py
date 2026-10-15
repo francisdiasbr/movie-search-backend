@@ -11,6 +11,14 @@ def error(message, status):
     return {"message": message}, status
 
 
+def json_body():
+    """The request body as a dict; {} when it is missing or not an object."""
+    from flask import request
+
+    body = request.get_json(silent=True)
+    return body if isinstance(body, dict) else {}
+
+
 def pick(data, keys):
     """Subset of `data` with only the allowed `keys`."""
     data = data if isinstance(data, dict) else {}

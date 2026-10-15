@@ -1,8 +1,10 @@
 import logging
-
-from datetime import datetime
-import boto3
+import mimetypes
 import re
+from datetime import datetime
+from pathlib import PurePosixPath
+
+import boto3
 from botocore.exceptions import ClientError
 
 from config import (
@@ -56,25 +58,12 @@ def upload_image_to_s3(file, tconst, subtitle_en="", subtitle_pt=""):
 
     s3 = s3_client()
 
-    # Gera o próximo ID sequencial
+    # Images are stored as <sequential_id>.<ext> under the movie's prefix.
     sequential_id = get_next_sequential_id(tconst)
-    
-    # Obtém a extensão do arquivo original
-    original_filename = file.filename
-    file_extension = ""
-    if "." in original_filename:
-        file_extension = original_filename.split(".")[-1]
-    
-    # Cria o nome do arquivo com ID sequencial
-    new_filename = f"{sequential_id}.{file_extension}"
+    extension = PurePosixPath(file.filename or "").suffix.lower()
+    new_filename = f"{sequential_id}{extension}"
     object_name = f"{MAIN_PREFIX}/{tconst}/{new_filename}"
-
-    content_type = "application/octet-stream"
-    if file.filename.lower().endswith((".png", ".jpg", ".jpeg")):
-        if file.filename.lower().endswith(".png"):
-            content_type = "image/png"
-        elif file.filename.lower().endswith((".jpg", ".jpeg")):
-            content_type = "image/jpeg"
+    content_type = mimetypes.types_map.get(extension, "application/octet-stream")
 
     try:
         # Otimiza a imagem antes do upload (redimensiona e comprime)
