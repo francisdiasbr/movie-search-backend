@@ -32,6 +32,7 @@ favorite_movie_model = api.model(
         "subtitle_url": fields.String(description="URL da legenda"),
         "tconst": fields.String(description="ID IMDB"),
         "trivia": fields.String(description="Curiosidades"),
+        "watched": fields.Boolean(description="Já assistido"),
         "wiki": fields.String(description="Link da Wikipedia"),
         "writers": fields.List(fields.String, description="Roteiristas"),
     },

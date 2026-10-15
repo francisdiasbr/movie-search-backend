@@ -17,61 +17,48 @@ api = Namespace(
 write_review_bp.api = api
 
 
+def unwrap(body):
+    """Accepts the review fields at the top level or inside a `data` envelope.
+
+    The frontend sends them at the top level; older clients wrapped them.
+    """
+    if not isinstance(body, dict):
+        return {}
+    data = body.get("data")
+    return data if isinstance(data, dict) else body
+
+
 # Modelos para o Swagger
 review_content_model = api.model(
     "ReviewContent", {"text": fields.String(description="Texto da resenha")}
 )
 
-review_input = api.model(
-    "ReviewInput",
+review_content_languages = api.model(
+    "ReviewContentLanguages",
     {
-        "data": fields.Nested(
-            api.model(
-                "ReviewData",
-                {
-                    "content": fields.Nested(
-                        api.model(
-                            "ReviewContent",
-                            {
-                                "en": fields.Nested(review_content_model),
-                                "pt": fields.Nested(review_content_model),
-                            },
-                        )
-                    ),
-                    "references": fields.List(
-                        fields.String, description="Lista de referências"
-                    ),
-                    "images": fields.List(
-                        fields.String, description="Lista de URLs de imagens"
-                    ),
-                },
-            )
-        )
+        "en": fields.Nested(review_content_model),
+        "pt": fields.Nested(review_content_model),
     },
 )
 
-# Novo modelo para atualização de review
+# The body is the review itself, without a `data` envelope. The `pt` text is
+# the only required part; `en` is optional.
+review_input = api.model(
+    "ReviewInput",
+    {
+        "content": fields.Nested(review_content_languages, required=True),
+        "references": fields.List(fields.String, description="Lista de referências"),
+        "images": fields.List(fields.String, description="Lista de URLs de imagens"),
+        "isAiGenerated": fields.Boolean(description="Resenha gerada por IA"),
+    },
+)
+
 review_update_input = api.model(
     "ReviewUpdateInput",
     {
-        "data": fields.Nested(
-            api.model(
-                "ReviewUpdateData",
-                {
-                    "content": fields.Nested(
-                        api.model(
-                            "ReviewContentUpdate",
-                            {
-                                "en": fields.Nested(review_content_model),
-                                "pt": fields.Nested(review_content_model),
-                            },
-                        )
-                    ),
-                    "references": fields.List(fields.String),
-                    "images": fields.List(fields.String),
-                },
-            )
-        )
+        "content": fields.Nested(review_content_languages),
+        "references": fields.List(fields.String),
+        "images": fields.List(fields.String),
     },
 )
 
@@ -126,11 +113,12 @@ class MovieReview(Resource):
 
     @api.doc("create_review")
     @api.expect(review_input)
-    @api.response(200, "Success", review_output)
+    @api.response(201, "Created", review_output)
     @api.response(404, "Movie not found")
+    @api.response(409, "Review already exists")
     def post(self, tconst):
         """Cria uma nova resenha para um filme"""
-        return create_and_save_movie_review(tconst, request.get_json())
+        return create_and_save_movie_review(tconst, unwrap(request.get_json()))
 
     @api.doc("update_review")
     @api.expect(review_update_input)
@@ -138,8 +126,7 @@ class MovieReview(Resource):
     @api.response(404, "Review not found")
     def put(self, tconst):
         """Atualiza a resenha de um filme específico"""
-        request_data = request.get_json().get("data", {})
-        return edit_movie_review(tconst, request_data)
+        return edit_movie_review(tconst, unwrap(request.get_json()))
 
     @api.doc("delete_review")
     @api.response(200, "Review deleted")

@@ -1,6 +1,8 @@
 from datetime import datetime
 import logging
 
+from pymongo import ReturnDocument
+
 from config import get_mongo_collection
 from utils import sanitize_movie_data, sanitize_filters
 
@@ -23,7 +25,7 @@ def create_and_save_movie_review(tconst, review_data):
 
         collection = reviews()
         if collection.find_one({"tconst": tconst}):
-            return {"status": 400, "message": "Já existe uma resenha para este filme"}, 400
+            return {"status": 409, "message": "Já existe uma resenha para este filme"}, 409
 
         if not review_data or not review_data.get("content", {}).get("pt", {}).get("text"):
             return {"status": 400, "message": "Conteúdo da review é obrigatório"}, 400
@@ -40,7 +42,7 @@ def create_and_save_movie_review(tconst, review_data):
 
         review_document["_id"] = str(collection.insert_one(review_document).inserted_id)
         logger.info("Review created for %s", tconst)
-        return {"data": review_document}, 200
+        return {"data": review_document}, 201
     except Exception as e:
         logger.error("Could not create review for %s: %s", tconst, e)
         return {"status": 500, "message": str(e)}, 500
@@ -91,15 +93,15 @@ def edit_movie_review(tconst, request_data):
         if not update_data:
             return {"message": "No valid fields to update"}, 400
 
-        # Atualiza o documento específico
-        result = collection.update_one({"tconst": tconst}, {"$set": update_data})
-
-        if result.modified_count == 1:
-            # Busca a review atualizada para retornar
-            updated_review = collection.find_one({"tconst": tconst}, {"_id": 0})
-            return {"data": updated_review}, 200
-        else:
-            return {"message": "No changes were made"}, 400
+        # Saving the same text again is a valid request, so the document is
+        # returned regardless of whether anything actually changed.
+        updated_review = collection.find_one_and_update(
+            {"tconst": tconst},
+            {"$set": update_data},
+            return_document=ReturnDocument.AFTER,
+        )
+        updated_review["_id"] = str(updated_review["_id"])
+        return {"data": updated_review}, 200
 
     except Exception as e:
         logger.error("Could not update review of %s: %s", tconst, e)
