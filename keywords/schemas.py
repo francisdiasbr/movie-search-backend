@@ -20,9 +20,15 @@ class MovieSuggestion(BaseModel):
     title: constr(min_length=1, max_length=200) = Field(
         description="Título do filme", examples=["O Poderoso Chefão", "Fight Club"]
     )
+    original_title: constr(min_length=1, max_length=200) = Field(
+        description="Título original do filme, como listado no IMDb",
+        examples=["The Godfather", "Fight Club"],
+    )
     year: conint(ge=1888, le=LATEST_YEAR) = Field(
         description="Ano de lançamento do filme", examples=[1972, 1999]
     )
+    # Kept so the model commits to a specific movie, but never trusted: the
+    # controller replaces it with the id found on IMDB.
     tconst: constr(pattern=r"^tt\d{7,8}$") = Field(
         description="IMDb ID (tconst) do filme", examples=["tt0068646", "tt0137523"]
     )

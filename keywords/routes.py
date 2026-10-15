@@ -22,10 +22,11 @@ movie_suggestion_model = api.model(
     "MovieSuggestion",
     {
         "title": fields.String(required=True, description="Título do filme"),
+        "original_title": fields.String(required=True, description="Título original, como no IMDb"),
         "year": fields.Integer(required=True, description="Ano de lançamento"),
         "tconst": fields.String(
             required=True,
-            description="IMDb ID (tconst) do filme",
+            description="IMDb ID (tconst) do filme, confirmado na busca do IMDb",
             example="tt0068646",
         ),
         "description": fields.String(

@@ -25,7 +25,7 @@ Flask 3 + flask-restx (Swagger, request validation) + pymongo. Entrypoint is `ap
 
 ```
 favorites/      routes.py, controller.py, scrapper.py (IMDB via Playwright), external_requests.py (RapidAPI, OpenSubtitles)
-keywords/       routes.py, controller.py, schemas.py (pydantic schema for the Claude structured output)
+keywords/       routes.py, controller.py, schemas.py (pydantic schema for the Claude structured output), imdb.py (title lookup in IMDB's public suggestion API)
 main_images/    routes.py, controller.py (S3 upload/list/delete + metadata in Mongo)
 write_review/   routes.py, controller.py
 ```
