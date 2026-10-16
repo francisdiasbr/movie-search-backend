@@ -37,6 +37,12 @@ movie_suggestion_model = api.model(
             description=
                 "Explicação objetiva de como as palavras-chave aparecem no filme",
         ),
+        "genres": fields.List(
+            fields.String,
+            required=True,
+            description="Gêneros do filme, como listados na página do IMDb (vazio se a página não carregou)",
+            example=["Drama", "Romance"],
+        ),
     },
 )
 

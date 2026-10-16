@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 import db
 from config import ANTHROPIC_API_KEY, KEYWORDS_COLLECTION, SUGGESTION_MODEL, get_mongo_collection
+from favorites.scrapper import clear_soup_cache, get_movie_genres
 from keywords.imdb import find_imdb_title
 from keywords.schemas import MovieSuggestions
 from utils import error
@@ -104,12 +105,16 @@ def suggest_movies_by_keywords(keywords):
 
 
 def _verified_on_imdb(suggestions):
-    """Keeps only the suggestions IMDB knows, with the real tconst.
+    """Keeps only the suggestions IMDB knows, with the real tconst and genres.
 
     The model's tconst is a guess and is replaced by the one IMDB returns for
     the title + year; suggestions IMDB cannot find are dropped and logged.
+    Genres come from the IMDB title page through the favorites scraper, since
+    the suggestion API does not list them; when a page fails to load the
+    genres stay empty and the remaining pages are not even tried.
     """
     verified = []
+    genres_available = True
     for suggestion in suggestions:
         match = find_imdb_title(suggestion.title, suggestion.year, suggestion.original_title)
         if not match:
@@ -119,5 +124,21 @@ def _verified_on_imdb(suggestions):
             continue
         movie = suggestion.model_dump()
         movie.update(tconst=match["tconst"], original_title=match["title"], year=match["year"])
+        # One page that fails to load almost always means the WAF session
+        # expired, and every other page would fail (and retry) the same way.
+        genres = _genres(match["tconst"]) if genres_available else None
+        if genres is None:
+            genres_available = False
+        movie["genres"] = genres or []
         verified.append(movie)
+    clear_soup_cache()
     return verified
+
+
+def _genres(tconst):
+    """Genres from the IMDB title page, or None when the page did not load."""
+    try:
+        return get_movie_genres(tconst)
+    except Exception as e:
+        logger.warning("Could not fetch genres for %s: %s", tconst, e)
+        return None
