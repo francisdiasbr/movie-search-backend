@@ -40,34 +40,37 @@ def delete_favorited_keyword(keyword):
 
 
 SUGGESTION_SYSTEM_PROMPT = (
-    "Você é um curador de cinema especializado em encontrar filmes que contenham, de forma "
-    "literal e explícita, as palavras-chave fornecidas. Porém não seja óbvio indicando somente "
-    "filmes muito conhecidos, pois a vantagem desta sugestão é conhecer o novo.\n"
-    "Só sugira filmes que realmente apresentem personagens, cenas, profissões, temas ou "
-    "elementos diretamente relacionados às palavras-chave, de maneira objetiva.\n"
+    "Você é um curador de cinema especializado em encontrar filmes em que as palavras-chave "
+    "fornecidas aparecem de forma literal e explícita: personagens, cenas, profissões, objetos, "
+    "lugares, temas ou elementos diretamente relacionados a elas.\n"
+    "Evite o óbvio: não indique só filmes muito conhecidos, pois a vantagem desta sugestão é "
+    "descobrir títulos novos. Varie épocas, países e gêneros.\n"
+    "Um filme não precisa conter todas as palavras-chave. Basta casar fortemente com uma delas; "
+    "liste primeiro os que casam com várias.\n"
     "Sugira apenas filmes que existem e estão listados no IMDb; nunca invente títulos. "
     "Informe sempre o título original exatamente como aparece no IMDb.\n"
-    "Não faça interpretações metafóricas, filosóficas ou subjetivas das palavras-chave. Se não "
-    "encontrar filmes suficientes, retorne apenas os que realmente se encaixam."
+    "Não faça interpretações metafóricas ou subjetivas das palavras-chave."
 )
 
 SUGGESTION_USER_PROMPT = (
     "Com base nas palavras-chave: {keywords},\n"
-    "sugira até 5 filmes em que as palavras-chave estejam presentes de forma literal.\n"
+    "sugira de 10 a 15 filmes em que ao menos uma das palavras-chave esteja presente de forma "
+    "literal. Comece pelos filmes que combinam mais palavras-chave.\n"
     "Para cada filme, forneça:\n"
     "- Título\n"
     "- Título original, como listado no IMDb\n"
     "- Ano de lançamento\n"
     "- ID do IMDb (tconst) no formato 'tt1234567' ou 'tt12345678'\n"
     "- Uma breve descrição (2-3 linhas)\n"
-    "- Explique de forma objetiva como as palavras-chave aparecem no filme\n\n"
-    "Se não houver filmes suficientes, retorne apenas os que realmente se encaixam. "
-    "Não force relação!"
+    "- Explique de forma objetiva quais palavras-chave aparecem no filme e como"
 )
 
 
 def suggest_movies_by_keywords(keywords):
-    """Asks Claude for up to five movies that literally feature the keywords.
+    """Asks Claude for 10 to 15 movies that literally feature the keywords.
+
+    More than the client needs on purpose: `_verified_on_imdb` drops the ones
+    IMDB does not recognise.
 
     `output_format` makes the answer come back already validated against the
     MovieSuggestions pydantic schema.
@@ -78,7 +81,7 @@ def suggest_movies_by_keywords(keywords):
             # Thinking tokens share this budget with the answer; too low a value
             # truncates the JSON mid-string and the schema validation fails.
             max_tokens=16000,
-            output_config={"effort": "low"},
+            output_config={"effort": "medium"},
             system=SUGGESTION_SYSTEM_PROMPT,
             messages=[
                 {

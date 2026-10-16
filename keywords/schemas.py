@@ -50,5 +50,5 @@ class MovieSuggestions(BaseModel):
     """Modelo para lista de sugestões de filmes"""
 
     movies: List[MovieSuggestion] = Field(
-        description="Lista de sugestões de filmes", min_items=1, max_items=5
+        description="Lista de sugestões de filmes", min_items=1, max_items=15
     )

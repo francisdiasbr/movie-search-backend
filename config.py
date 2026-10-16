@@ -56,9 +56,9 @@ BLOGPOSTS_COLLECTION = "blogposts"
 
 # Anthropic (sugestão de filmes por palavras-chave)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-# Any current Claude model id. Haiku is enough to list five movies and is the
-# cheapest and fastest option.
-SUGGESTION_MODEL = os.getenv("SUGGESTION_MODEL", "claude-haiku-5-5")
+# Any current Claude model id. Sonnet knows far more lesser-known titles than
+# Haiku, which matters since IMDB verification drops what it does not find.
+SUGGESTION_MODEL = os.getenv("SUGGESTION_MODEL", "claude-sonnet-5-5")
 
 # Configurações da RapidAPI
 RAPIDAPI_API_KEY = os.getenv("RAPIDAPI_API_KEY")
