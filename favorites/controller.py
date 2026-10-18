@@ -5,6 +5,7 @@ import db
 from config import BLOGPOSTS_COLLECTION, FAVORITES_COLLECTION, get_mongo_collection
 
 from favorites.scrapper import (
+    IMDBUnavailable,
     clear_soup_cache,
     get_director,
     get_movie_country,
@@ -61,6 +62,11 @@ def collect_movie_data(tconst, title):
             value = scraper(tconst)
             if value is not None and value != "":
                 data[field] = value
+        except IMDBUnavailable:
+            # Every remaining IMDB page would be blocked too; better a 503 now
+            # than a favorite saved with most fields missing.
+            clear_soup_cache()
+            raise
         except Exception as e:
             logger.warning("Could not fetch %s for %s: %s", field, tconst, e)
 

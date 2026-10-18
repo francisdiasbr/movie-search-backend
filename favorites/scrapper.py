@@ -38,6 +38,11 @@ WAF_RETRY_DELAY = 3
 _cache = {}
 _cache_lock = threading.Lock()
 
+
+class IMDBUnavailable(Exception):
+    """Raised when IMDB's AWS WAF keeps blocking the scraper. app.py turns it
+    into a 503, so a blocked session is never reported as a missing title."""
+
 # Every page load goes through a single thread that owns Playwright: the sync
 # API cannot be used from a thread other than the one that created it, and
 # Chromium locks the profile directory, so it cannot be opened in parallel.
@@ -155,12 +160,16 @@ def fetch_soup(tconst, path=""):
                     url,
                     WAF_ATTEMPTS,
                 )
-                return None
+                raise IMDBUnavailable(
+                    "IMDB bloqueou o acesso. Renove a sessão com ./verify_imdb.sh"
+                )
 
             logger.info("Loaded %s", url)
             with _cache_lock:
                 _cache[key] = (time.monotonic(), soup)
             return soup
+        except IMDBUnavailable:
+            raise
         except Exception as e:
             logger.error("Could not load %s: %s", url, e)
             return None
@@ -181,7 +190,8 @@ def imdb_page(path=""):
     """Loads the IMDB page `path` of the tconst and hands the soup to the scraper.
 
     The scraper is not called when the page could not be loaded, so it never
-    has to check for a missing soup.
+    has to check for a missing soup. A WAF block raises IMDBUnavailable
+    instead, so callers can tell it apart from a page that lacks the field.
     """
 
     def decorator(scraper):

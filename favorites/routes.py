@@ -79,7 +79,9 @@ class FavoriteMovie(Resource):
 
     @api.doc("add_favorite_movie")
     @api.response(201, "Filme adicionado com sucesso")
+    @api.response(404, "Título não encontrado no IMDB")
     @api.response(409, "Filme já está na lista")
+    @api.response(503, "IMDB bloqueou o acesso (sessão do WAF expirada)")
     def post(self, tconst):
         """Adiciona um filme aos favoritos"""
         return favorite_movie(tconst)

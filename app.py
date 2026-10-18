@@ -12,6 +12,7 @@ logging.basicConfig(
 
 from config import DatabaseUnavailable
 from main_images.controller import StorageUnavailable
+from favorites.scrapper import IMDBUnavailable
 from favorites.routes import favorites_bp
 from keywords.routes import keywords_bp
 from main_images.routes import main_images_bp
@@ -69,6 +70,13 @@ def handle_database_unavailable(error):
 
 @api.errorhandler(StorageUnavailable)
 def handle_storage_unavailable(error):
+    return {"message": str(error)}, 503
+
+
+@api.errorhandler(IMDBUnavailable)
+def handle_imdb_unavailable(error):
+    """The scraper raises this when the AWS WAF blocks every attempt; the fix
+    is renewing the session (./verify_imdb.sh), not a different tconst."""
     return {"message": str(error)}, 503
 
 

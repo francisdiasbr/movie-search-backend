@@ -39,6 +39,7 @@ write_review/   routes.py, controller.py
 
 - `config.py`: loads `.env`, exposes settings, and `get_mongo_collection(name)`. It raises `DatabaseUnavailable` when Atlas cannot be reached; `app.py` turns that into a `503 { message }`. Controllers never check for `None`. A broad `except Exception` in a controller must re-raise `DatabaseUnavailable` first.
 - `main_images.controller.s3_client()` is the only way to get an S3 client; it raises `StorageUnavailable` (also 503) when credentials are missing.
+- `favorites.scrapper.fetch_soup` raises `IMDBUnavailable` (also 503) when the AWS WAF blocks every attempt, so a blocked session is never answered as a 404. The `_genres` helper in `keywords/controller.py` swallows it on purpose: suggestions still work, only without genres.
 - `db.py`: the Mongo helpers every controller uses: `serialize(doc)` (`_id` to str + NaN cleanup), `insert`, `search(collection, filters, projection, sort, page, page_size)` returning `(total, entries)`, `update(collection, query, fields)` (drops `None`, idempotent when no field is sent) and `delete`. New data access should go through them.
 - `utils.py`: `error(message, status)`, `json_body()`, `pick(data, keys)`, `sanitize_movie_data`, `sanitize_filters` (client filters before `find`), `optimize_image` (Pillow resize before S3 upload).
 - `HTTP_TIMEOUT` in `config.py` applies to every outbound `requests` call.
