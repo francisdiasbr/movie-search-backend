@@ -21,8 +21,9 @@ from favorites.scrapper import (
     get_wikipedia_url,
     get_writers,
 )
-from utils import error, pick
 from favorites.external_requests import get_magnet_link, get_subtitle_url
+from favorites.translation import LANGUAGES, localize, translate_movie
+from utils import error, pick
 
 logger = logging.getLogger(__name__)
 
@@ -85,26 +86,56 @@ def favorite_movie(tconst):
         logger.warning("Title for %s not found on IMDB", tconst)
         return error("Título do filme não encontrado no IMDB", 404)
 
-    movie = db.insert(
-        collection,
-        {
-            "primaryTitle": title,
-            "tconst": tconst,
-            "imdb_url": f"https://www.imdb.com/title/{tconst}/",
-            "created_at": datetime.now().isoformat(),
-            "references": [],
-            **collect_movie_data(tconst, title),
-        },
-    )
+    movie = {
+        "primaryTitle": title,
+        "tconst": tconst,
+        "imdb_url": f"https://www.imdb.com/title/{tconst}/",
+        "created_at": datetime.now().isoformat(),
+        "references": [],
+        **collect_movie_data(tconst, title),
+    }
+    # English stays as the stored original; a failed translation only means
+    # the favorite has no Portuguese version until POST /<tconst>/translate.
+    translation = translate_movie(movie)
+    if translation:
+        movie["translations"] = {"pt": translation}
+
+    movie = db.insert(collection, movie)
     logger.info("Movie %s added as %s", tconst, movie["_id"])
-    return {"data": movie}, 201
+    return {"data": localize(movie, "en")}, 201
 
 
-def get_favorited_movie(tconst):
-    movie = db.serialize(get_mongo_collection(FAVORITES_COLLECTION).find_one({"tconst": tconst}))
+def get_favorited_movie(tconst, lang="en"):
+    if lang not in LANGUAGES:
+        return error(f"Idioma inválido, use um de: {', '.join(LANGUAGES)}", 400)
+
+    movie = db.serialize(
+        get_mongo_collection(FAVORITES_COLLECTION).find_one({"tconst": tconst})
+    )
     if not movie:
         return error("Movie not found", 404)
-    return {"data": movie}, 200
+    return {"data": localize(movie, lang)}, 200
+
+
+def translate_favorited_movie(tconst):
+    """Generates (or regenerates) the Portuguese version of a favorite.
+
+    Meant for favorites created before translations existed, or whose
+    translation failed on creation.
+    """
+    collection = get_mongo_collection(FAVORITES_COLLECTION)
+    movie = collection.find_one({"tconst": tconst})
+    if not movie:
+        return error("Movie not found", 404)
+
+    translation = translate_movie(movie)
+    if not translation:
+        return error("Falha ao traduzir o filme", 502)
+
+    movie = db.update(
+        collection, {"tconst": tconst}, {"translations": {"pt": translation}}
+    )
+    return {"data": localize(movie, "pt")}, 200
 
 
 # Fields the client may change on a favorite.
@@ -139,7 +170,9 @@ def sync_blogpost(tconst, update_data):
 def edit_favorited_movie(tconst, request_data):
     """Updates only the fields present in the body; the others are kept."""
     fields = pick(request_data, EDITABLE_FIELDS)
-    movie = db.update(get_mongo_collection(FAVORITES_COLLECTION), {"tconst": tconst}, fields)
+    movie = db.update(
+        get_mongo_collection(FAVORITES_COLLECTION), {"tconst": tconst}, fields
+    )
     if not movie:
         return error(f"Movie {tconst} not found", 404)
 

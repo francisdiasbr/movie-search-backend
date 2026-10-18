@@ -27,7 +27,9 @@ def get_mongo_client():
         return _mongo_client
 
     try:
-        client = MongoClient(MONGODB_CONNECTION_STRING_ATLAS, serverSelectionTimeoutMS=5000)
+        client = MongoClient(
+            MONGODB_CONNECTION_STRING_ATLAS, serverSelectionTimeoutMS=5000
+        )
         client.server_info()  # Testa conexão
     except PyMongoError as e:
         logger.error("Could not connect to MongoDB Atlas: %s", e)
@@ -53,12 +55,6 @@ REVIEWS_COLLECTION = "authoralreviewslist"
 KEYWORDS_COLLECTION = "favorites_keywords"
 MAIN_IMAGES_COLLECTION = "main-images"
 BLOGPOSTS_COLLECTION = "blogposts"
-
-# Anthropic (sugestão de filmes por palavras-chave)
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-# Any current Claude model id. Sonnet knows far more lesser-known titles than
-# Haiku, which matters since IMDB verification drops what it does not find.
-SUGGESTION_MODEL = os.getenv("SUGGESTION_MODEL", "claude-sonnet-5-5")
 
 # Configurações da RapidAPI
 RAPIDAPI_API_KEY = os.getenv("RAPIDAPI_API_KEY")

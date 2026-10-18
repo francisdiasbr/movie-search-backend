@@ -9,6 +9,8 @@
   - [Variáveis de Ambiente](#3-variáveis-de-ambiente)
 - [Rodando o Projeto](#rodando-o-projeto)
 - [Sessão do IMDB](#sessão-do-imdb)
+- [Tradução para português](#tradução-para-português)
+- [Sugestão por palavras-chave](#sugestão-por-palavras-chave)
 - [Scripts de Automação](#scripts-de-automação)
 - [Documentação da API](#documentação-da-api)
 
@@ -41,7 +43,7 @@ separadamente do pacote Python:
 
 ### 3. Variáveis de Ambiente
 
-Crie um arquivo `.env` na raiz do projeto a partir do modelo em `.env.example`. Só o MongoDB Atlas é obrigatório para a API subir; as chaves de AWS, Anthropic, RapidAPI e OpenSubtitles são exigidas apenas pelas rotas que as usam, que respondem `503` quando faltam.
+Crie um arquivo `.env` na raiz do projeto a partir do modelo em `.env.example`. Só o MongoDB Atlas é obrigatório para a API subir; as chaves de AWS, RapidAPI e OpenSubtitles são exigidas apenas pelas rotas que as usam, que respondem `503` quando faltam.
 
 
 
@@ -100,6 +102,36 @@ ele desistir.
 
 
 
+
+## Tradução para português
+
+Os textos que o scraper tira do IMDB (sinopse, trivia, citações, gêneros e
+palavras-chave) só existem em inglês. O backend gera uma versão em português
+com o [Argos Translate](https://github.com/argosopentech/argos-translate), um
+tradutor automático de código aberto que roda **offline, na própria máquina**:
+é como um Google Tradutor local, sem chave de API, sem cota e sem custo.
+
+- O modelo inglês→português (cerca de 100 MB) é baixado uma única vez, na
+  primeira tradução, para `~/.local/share/argos-translate`. Depois disso não há
+  mais rede nem download.
+- A tradução acontece ao cadastrar o favorito e fica gravada no documento em
+  `translations.pt`; o inglês original é mantido. Favoritos antigos são
+  traduzidos sob demanda por `POST /api/favorites/<tconst>/translate`.
+- O cliente escolhe o idioma na leitura: `GET /api/favorites/<tconst>?lang=pt`
+  devolve os textos em português (ou em inglês, com `lang: "en"` na resposta,
+  quando ainda não há tradução); sem o parâmetro vem o inglês.
+- A qualidade é de tradução de máquina: dá para entender, mas puxa para o
+  português de Portugal em alguns pontos e tropeça em expressões idiomáticas.
+
+## Sugestão por palavras-chave
+
+`POST /api/keywords/suggest-movies` busca os filmes que o IMDB associa a cada
+palavra-chave usando a API GraphQL do próprio IMDB (a mesma da busca avançada
+do site). Não precisa de sessão, chave nem do scraper, e fica fora do WAF. Um
+filme que casa com várias palavras-chave aparece antes de um que casa com uma
+só; no empate vale a popularidade do IMDB. Palavras-chave viram o identificador
+do IMDB automaticamente (`French New Wave` → `french-new-wave`); nomes de
+pessoas não são palavras-chave e voltam vazios.
 
 ## Scripts de Automação
 

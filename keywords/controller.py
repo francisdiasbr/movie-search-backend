@@ -1,13 +1,8 @@
 import logging
 
-import anthropic
-from pydantic import ValidationError
-
 import db
-from config import ANTHROPIC_API_KEY, KEYWORDS_COLLECTION, SUGGESTION_MODEL, get_mongo_collection
-from favorites.scrapper import clear_soup_cache, get_movie_genres
-from keywords.imdb import find_imdb_title
-from keywords.schemas import MovieSuggestions
+from config import KEYWORDS_COLLECTION, get_mongo_collection
+from keywords.imdb import IMDBSearchError, search_movies_by_keyword
 from utils import error
 
 logger = logging.getLogger(__name__)
@@ -40,105 +35,44 @@ def delete_favorited_keyword(keyword):
     return {"data": "Keyword deleted successfully"}, 200
 
 
-SUGGESTION_SYSTEM_PROMPT = (
-    "Você é um curador de cinema especializado em encontrar filmes em que as palavras-chave "
-    "fornecidas aparecem de forma literal e explícita: personagens, cenas, profissões, objetos, "
-    "lugares, temas ou elementos diretamente relacionados a elas.\n"
-    "Evite o óbvio: não indique só filmes muito conhecidos, pois a vantagem desta sugestão é "
-    "descobrir títulos novos. Varie épocas, países e gêneros.\n"
-    "Um filme não precisa conter todas as palavras-chave. Basta casar fortemente com uma delas; "
-    "liste primeiro os que casam com várias.\n"
-    "Sugira apenas filmes que existem e estão listados no IMDb; nunca invente títulos. "
-    "Informe sempre o título original exatamente como aparece no IMDb.\n"
-    "Não faça interpretações metafóricas ou subjetivas das palavras-chave."
-)
-
-SUGGESTION_USER_PROMPT = (
-    "Com base nas palavras-chave: {keywords},\n"
-    "sugira de 10 a 15 filmes em que ao menos uma das palavras-chave esteja presente de forma "
-    "literal. Comece pelos filmes que combinam mais palavras-chave.\n"
-    "Para cada filme, forneça:\n"
-    "- Título\n"
-    "- Título original, como listado no IMDb\n"
-    "- Ano de lançamento\n"
-    "- ID do IMDb (tconst) no formato 'tt1234567' ou 'tt12345678'\n"
-    "- Uma breve descrição (2-3 linhas)\n"
-    "- Explique de forma objetiva quais palavras-chave aparecem no filme e como"
-)
+# Movies asked to IMDB per keyword; the answer keeps the best SUGGESTION_LIMIT.
+PER_KEYWORD = 15
+SUGGESTION_LIMIT = 15
 
 
 def suggest_movies_by_keywords(keywords):
-    """Asks Claude for 10 to 15 movies that literally feature the keywords.
+    """Movies IMDB tags with the keywords, the ones matching more first.
 
-    More than the client needs on purpose: `_verified_on_imdb` drops the ones
-    IMDB does not recognise.
-
-    `output_format` makes the answer come back already validated against the
-    MovieSuggestions pydantic schema.
+    One IMDB search per keyword; a movie that comes back for several
+    keywords ranks above one that matches a single keyword, and within the
+    same count IMDB's popularity order is kept. A keyword IMDB does not know
+    simply contributes nothing; the answer is 502 only when every search
+    failed.
     """
-    try:
-        response = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY).messages.parse(
-            model=SUGGESTION_MODEL,
-            # Thinking tokens share this budget with the answer; too low a value
-            # truncates the JSON mid-string and the schema validation fails.
-            max_tokens=16000,
-            output_config={"effort": "medium"},
-            system=SUGGESTION_SYSTEM_PROMPT,
-            messages=[
-                {
-                    "role": "user",
-                    "content": SUGGESTION_USER_PROMPT.format(keywords=", ".join(keywords)),
-                }
-            ],
-            output_format=MovieSuggestions,
-        )
-    except anthropic.APIError as e:
-        logger.error("Claude suggestion failed: %s", e)
-        return error("Falha ao gerar sugestões de filmes", 502)
-    except ValidationError as e:
-        # The answer came back but does not fit MovieSuggestions (truncated or
-        # off-schema); the client can simply try again.
-        logger.error("Claude suggestion did not match the schema: %s", e)
-        return error("A sugestão veio em formato inválido, tente novamente", 502)
-
-    return {"data": {"movies": _verified_on_imdb(response.parsed_output.movies)}}, 200
-
-
-def _verified_on_imdb(suggestions):
-    """Keeps only the suggestions IMDB knows, with the real tconst and genres.
-
-    The model's tconst is a guess and is replaced by the one IMDB returns for
-    the title + year; suggestions IMDB cannot find are dropped and logged.
-    Genres come from the IMDB title page through the favorites scraper, since
-    the suggestion API does not list them; when a page fails to load the
-    genres stay empty and the remaining pages are not even tried.
-    """
-    verified = []
-    genres_available = True
-    for suggestion in suggestions:
-        match = find_imdb_title(suggestion.title, suggestion.year, suggestion.original_title)
-        if not match:
-            logger.info(
-                "Dropping suggestion not found on IMDB: %r (%s)", suggestion.title, suggestion.year
-            )
+    matches = {}
+    failures = 0
+    for keyword in dict.fromkeys(str(k).strip() for k in keywords if str(k).strip()):
+        try:
+            movies = search_movies_by_keyword(keyword, PER_KEYWORD)
+        except IMDBSearchError as e:
+            logger.error("%s", e)
+            failures += 1
             continue
-        movie = suggestion.model_dump()
-        movie.update(tconst=match["tconst"], original_title=match["title"], year=match["year"])
-        # One page that fails to load almost always means the WAF session
-        # expired, and every other page would fail (and retry) the same way.
-        genres = _genres(match["tconst"]) if genres_available else None
-        if genres is None:
-            genres_available = False
-        movie["genres"] = genres or []
-        verified.append(movie)
-    clear_soup_cache()
-    return verified
+        for rank, movie in enumerate(movies):
+            entry = matches.setdefault(
+                movie["tconst"], {"movie": movie, "keywords": [], "rank": rank}
+            )
+            entry["keywords"].append(keyword)
 
+    if not matches and failures:
+        return error("Falha ao buscar filmes no IMDb", 502)
 
-def _genres(tconst):
-    """Genres from the IMDB title page, or None when the page did not load."""
-    try:
-        return get_movie_genres(tconst)
-    except Exception as e:
-        logger.warning("Could not fetch genres for %s: %s", tconst, e)
-        return None
+    ranked = sorted(matches.values(), key=lambda e: (-len(e["keywords"]), e["rank"]))
+    suggestions = [
+        {
+            **entry["movie"],
+            "relevance": "Palavras-chave no IMDb: " + ", ".join(entry["keywords"]),
+        }
+        for entry in ranked[:SUGGESTION_LIMIT]
+    ]
+    return {"data": {"movies": suggestions}}, 200

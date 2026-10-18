@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, request
 from flask_restx import Namespace, Resource, fields
 
 from favorites.controller import (
@@ -7,6 +7,7 @@ from favorites.controller import (
     favorite_movie,
     get_favorited_movie,
     get_favorited_movies,
+    translate_favorited_movie,
 )
 from utils import json_body
 
@@ -71,11 +72,13 @@ class FavoriteMovieSearch(Resource):
 @api.route("/<string:tconst>")
 class FavoriteMovie(Resource):
     @api.doc("get_favorite_movie")
+    @api.param("lang", "Idioma dos textos: en (original do IMDB) ou pt", default="en")
     @api.response(200, "Sucesso")
+    @api.response(400, "Idioma inválido")
     @api.response(404, "Filme não encontrado")
     def get(self, tconst):
         """Recupera um filme favoritado"""
-        return get_favorited_movie(tconst)
+        return get_favorited_movie(tconst, lang=request.args.get("lang", "en"))
 
     @api.doc("add_favorite_movie")
     @api.response(201, "Filme adicionado com sucesso")
@@ -100,6 +103,17 @@ class FavoriteMovie(Resource):
     def delete(self, tconst):
         """Remove um filme dos favoritos"""
         return delete_favorited_movie(tconst)
+
+
+@api.route("/<string:tconst>/translate")
+class FavoriteMovieTranslation(Resource):
+    @api.doc("translate_favorite_movie")
+    @api.response(200, "Filme traduzido com sucesso")
+    @api.response(404, "Filme não encontrado")
+    @api.response(502, "Falha na tradução")
+    def post(self, tconst):
+        """Gera a versão em português de um filme favoritado"""
+        return translate_favorited_movie(tconst)
 
 
 favorites_bp.api = api

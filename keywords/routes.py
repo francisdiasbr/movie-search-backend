@@ -22,25 +22,26 @@ movie_suggestion_model = api.model(
     "MovieSuggestion",
     {
         "title": fields.String(required=True, description="Título do filme"),
-        "original_title": fields.String(required=True, description="Título original, como no IMDb"),
+        "original_title": fields.String(
+            required=True, description="Título original, como no IMDb"
+        ),
         "year": fields.Integer(required=True, description="Ano de lançamento"),
         "tconst": fields.String(
             required=True,
-            description="IMDb ID (tconst) do filme, confirmado na busca do IMDb",
+            description="IMDb ID (tconst) do filme",
             example="tt0068646",
         ),
         "description": fields.String(
-            required=True, description="Breve descrição (2-3 linhas)"
+            required=True, description="Sinopse do IMDb (vazia quando não há)"
         ),
         "relevance": fields.String(
             required=True,
-            description=
-                "Explicação objetiva de como as palavras-chave aparecem no filme",
+            description="Quais das palavras-chave o IMDb associa ao filme",
         ),
         "genres": fields.List(
             fields.String,
             required=True,
-            description="Gêneros do filme, como listados na página do IMDb (vazio se a página não carregou)",
+            description="Gêneros do filme, como listados no IMDb",
             example=["Drama", "Romance"],
         ),
     },
@@ -98,9 +99,13 @@ class Keyword(Resource):
 class MovieSuggestions(Resource):
     @api.doc("suggest_movies")
     @api.expect(keywords_model)
-    @api.marshal_with(movie_suggestions_response_model, code=200, description="Sugestões geradas com sucesso")
+    @api.marshal_with(
+        movie_suggestions_response_model,
+        code=200,
+        description="Sugestões geradas com sucesso",
+    )
     @api.response(400, "Lista de keywords inválida")
-    @api.response(502, "Erro ao gerar sugestões")
+    @api.response(502, "IMDb não respondeu à busca")
     def post(self):
         """Sugere filmes baseado em uma lista de palavras-chave"""
         keywords = json_body().get("keywords")
