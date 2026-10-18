@@ -13,6 +13,7 @@ run). The en->pt package (~100 MB) is downloaded to
 import logging
 import re
 import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import argostranslate.package
 import argostranslate.translate
@@ -84,12 +85,39 @@ def _translate_text(translator, text):
     )
 
 
+def _translate_list(translator, items):
+    """Translates the items (keywords, genres) in a single model call.
+
+    Every call pays for sentence splitting and model warm-up, so 50 keywords
+    one by one cost about six times more than the same keywords joined by
+    newlines, which Argos keeps in place. Falls back to item by item when the
+    line count does not match, so no keyword ever maps to the wrong one.
+    """
+    items = [str(item).replace("\n", " ") for item in items]
+    lines = translator.translate("\n".join(items)).split("\n")
+    if len(lines) != len(items):
+        logger.warning(
+            "Batched translation returned %d lines for %d items, retrying one by one",
+            len(lines),
+            len(items),
+        )
+        lines = [translator.translate(item) for item in items]
+    return [line.lower() for line in lines]
+
+
 def _translate_value(translator, field, value):
     if isinstance(value, list):
-        return [translator.translate(str(item)).lower() for item in value]
+        return _translate_list(translator, value)
     if field == "quote":
         return _translate_quote(translator, str(value))
     return _translate_text(translator, str(value))
+
+
+def translate_field(field, value):
+    """The Portuguese version of one field, or None when it is not translated."""
+    if field not in TRANSLATED_FIELDS or not value:
+        return None
+    return _translate_value(_get_translator(), field, value)
 
 
 def translate_movie(movie):
@@ -117,6 +145,49 @@ def translate_movie(movie):
 
     logger.info("Translated %s: %s", movie.get("tconst"), sorted(translated))
     return translated
+
+
+class BackgroundTranslation:
+    """Translates fields on a worker thread while the caller keeps scraping.
+
+    Translation is the single most expensive step of a favorite (about 10 s,
+    mostly trivia) and each field only depends on its own IMDB page, so the
+    text is handed over as soon as it is scraped and the model runs while the
+    next pages load. One worker, because the Argos pipeline is not known to be
+    thread-safe; the fields queue up and still finish long before the pages.
+    """
+
+    def __init__(self, tconst):
+        self._tconst = tconst
+        self._executor = ThreadPoolExecutor(max_workers=1)
+        self._futures = {}
+
+    def submit(self, field, value):
+        if field in TRANSLATED_FIELDS and value:
+            self._futures[field] = self._executor.submit(translate_field, field, value)
+
+    def cancel(self):
+        """Drops the queued fields; whatever is being translated finishes alone."""
+        self._executor.shutdown(wait=False, cancel_futures=True)
+
+    def result(self):
+        """Waits for the queue and returns the translation, or None on failure.
+
+        Same contract as `translate_movie`: a failed field drops the whole
+        Portuguese version, the favorite is saved in English and
+        POST /<tconst>/translate can retry later.
+        """
+        self._executor.shutdown(wait=True)
+        translated = {}
+        for field, future in self._futures.items():
+            try:
+                translated[field] = future.result()
+            except Exception as e:
+                logger.error("Translation failed for %s: %s", self._tconst, e)
+                return None
+        if translated:
+            logger.info("Translated %s: %s", self._tconst, sorted(translated))
+        return translated or None
 
 
 def localize(movie, lang):

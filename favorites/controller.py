@@ -1,4 +1,5 @@
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import db
@@ -22,58 +23,98 @@ from favorites.scrapper import (
     get_writers,
 )
 from favorites.external_requests import get_magnet_link, get_subtitle_url
-from favorites.translation import LANGUAGES, localize, translate_movie
+from favorites.translation import (
+    LANGUAGES,
+    BackgroundTranslation,
+    localize,
+    translate_movie,
+)
 from utils import error, pick
 
 logger = logging.getLogger(__name__)
 
 # Scrapers that take a tconst, keyed by the field each one fills in. Adding a
 # new field to a favorite means adding one entry here.
+#
+# The order is the order the IMDB pages load: the main page first (it serves
+# eight fields from one load), then the pages whose text takes longest to
+# translate, so the translator gets trivia (about 4 s of model time) while
+# the keywords page loads, keywords while the quotes page loads, and the quote
+# (one line) is all that is left once the last page is in.
 SCRAPERS = {
     "country": get_movie_country,
     "director": get_director,
     "genres": get_movie_genres,
-    "magnet_link": get_magnet_link,
     "plot": get_movie_sm_plot,
-    "plot_keywords": get_movie_plot_keywords,
     "poster_url": get_movie_poster,
-    "quote": get_movie_quote,
     "stars": get_movie_principal_stars,
     "startYear": get_movie_year,
-    "subtitle_url": get_subtitle_url,
-    "trivia": get_movie_trivia,
     "writers": get_writers,
+    "trivia": get_movie_trivia,
+    "plot_keywords": get_movie_plot_keywords,
+    "quote": get_movie_quote,
+    "magnet_link": get_magnet_link,
+    "subtitle_url": get_subtitle_url,
 }
+
+# Fields that come from services other than IMDB. They neither touch the
+# browser nor the soup cache, so they run in parallel with the IMDB pages.
+EXTERNAL_FIELDS = ("magnet_link", "subtitle_url", "wiki")
+
+
+def _run_scraper(data, field, scraper, tconst):
+    try:
+        value = scraper(tconst)
+        if value is not None and value != "":
+            data[field] = value
+    except IMDBUnavailable:
+        raise
+    except Exception as e:
+        logger.warning("Could not fetch %s for %s: %s", field, tconst, e)
 
 
 def collect_movie_data(tconst, title):
     """Runs every scraper, keeping only the fields that resolved.
 
-    Sequential on purpose. Every IMDB page load is serialized by the browser
-    thread anyway, and running the scrapers concurrently made them all miss the
-    soup cache at once and queue the same URL again - 7 page loads instead of 4,
-    and twice the wall clock.
+    Returns `(data, translation)`: the fields plus their Portuguese version,
+    or None when the translation failed.
+
+    The IMDB scrapers run sequentially on purpose. Every page load is
+    serialized by the browser thread anyway, and running them concurrently
+    made them all miss the soup cache at once and queue the same URL again -
+    7 page loads instead of 4, and twice the wall clock.
+
+    Everything else overlaps with those page loads: the external services
+    (Wikipedia, torrents, subtitles) run on a small pool, and each text field
+    is handed to the translator as soon as it is scraped, so the model works
+    while the next IMDB page is still loading.
     """
     data = {}
     # The only scraper keyed by title instead of tconst.
     scrapers = {**SCRAPERS, "wiki": lambda _: get_wikipedia_url(title)}
+    translation = BackgroundTranslation(tconst)
 
-    for field, scraper in scrapers.items():
+    with ThreadPoolExecutor(max_workers=len(EXTERNAL_FIELDS)) as pool:
+        for field in EXTERNAL_FIELDS:
+            pool.submit(_run_scraper, data, field, scrapers[field], tconst)
+
         try:
-            value = scraper(tconst)
-            if value is not None and value != "":
-                data[field] = value
+            for field, scraper in scrapers.items():
+                if field in EXTERNAL_FIELDS:
+                    continue
+                _run_scraper(data, field, scraper, tconst)
+                if field in data:
+                    translation.submit(field, data[field])
         except IMDBUnavailable:
             # Every remaining IMDB page would be blocked too; better a 503 now
             # than a favorite saved with most fields missing.
-            clear_soup_cache()
+            translation.cancel()
             raise
-        except Exception as e:
-            logger.warning("Could not fetch %s for %s: %s", field, tconst, e)
+        finally:
+            # Every scraper is done with the IMDB pages by now.
+            clear_soup_cache()
 
-    # Every scraper is done with the IMDB pages by now.
-    clear_soup_cache()
-    return data
+    return data, translation.result()
 
 
 def favorite_movie(tconst):
@@ -86,17 +127,17 @@ def favorite_movie(tconst):
         logger.warning("Title for %s not found on IMDB", tconst)
         return error("Título do filme não encontrado no IMDB", 404)
 
+    data, translation = collect_movie_data(tconst, title)
     movie = {
         "primaryTitle": title,
         "tconst": tconst,
         "imdb_url": f"https://www.imdb.com/title/{tconst}/",
         "created_at": datetime.now().isoformat(),
         "references": [],
-        **collect_movie_data(tconst, title),
+        **data,
     }
     # English stays as the stored original; a failed translation only means
     # the favorite has no Portuguese version until POST /<tconst>/translate.
-    translation = translate_movie(movie)
     if translation:
         movie["translations"] = {"pt": translation}
 

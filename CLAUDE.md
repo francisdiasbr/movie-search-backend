@@ -47,7 +47,7 @@ write_review/   routes.py, controller.py
 
 ### IMDB scraper
 
-`favorites/scrapper.py` drives one Chromium through Playwright in a dedicated thread (`_browser_loop`); the sync API is not thread-safe and the persistent profile at `~/.cache/movie-search/imdb-profile` can only be opened once. Pages are rate-limited, cached per `(tconst, path)` for `CACHE_TTL`, and WAF challenges are retried. Each getter is decorated with `@imdb_page(path)` and receives `(soup, tconst)`; it is skipped when the page could not be loaded. Use `_text`/`_texts` to extract strings. `favorites.controller.SCRAPERS` maps each favorite field to its scraper; adding a field means adding one entry there. Run scrapers sequentially (see `collect_movie_data` docstring).
+`favorites/scrapper.py` drives one Chromium through Playwright in a dedicated thread (`_browser_loop`); the sync API is not thread-safe and the persistent profile at `~/.cache/movie-search/imdb-profile` can only be opened once. Pages are rate-limited, cached per `(tconst, path)` for `CACHE_TTL`, and WAF challenges are retried. Each getter is decorated with `@imdb_page(path)` and receives `(soup, tconst)`; it is skipped when the page could not be loaded. Use `_text`/`_texts` to extract strings. `favorites.controller.SCRAPERS` maps each favorite field to its scraper; adding a field means adding one entry there (and to `EXTERNAL_FIELDS` if it does not come from IMDB). IMDB scrapers run sequentially; external services and the translation overlap with the page loads (see `collect_movie_data` docstring).
 
 ## Conventions
 
