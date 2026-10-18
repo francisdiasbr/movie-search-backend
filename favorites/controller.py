@@ -159,6 +159,7 @@ def delete_favorited_movie(tconst):
 LIST_PROJECTION = {
     "poster_url": 1,
     "primaryTitle": 1,
+    "startYear": 1,
     "tconst": 1,
     "watched": 1,
 }
@@ -169,7 +170,14 @@ def get_favorited_movies(filters=None, page=1, page_size=0, search_term=""):
 
     # Copied so the caller's dict (the request body) is never mutated.
     filters = dict(filters or {})
-    search_term = search_term or filters.pop("search_term", None) or filters.get("tconst")
+    # A plain `tconst` filter doubles as the search term; an operator such as
+    # {"$in": [...]} is a real Mongo filter and must be left alone.
+    tconst = filters.get("tconst")
+    search_term = (
+        search_term
+        or filters.pop("search_term", None)
+        or (tconst if isinstance(tconst, str) else None)
+    )
 
     # `search_term` matches the exact tconst or part of the title/director.
     if search_term:
