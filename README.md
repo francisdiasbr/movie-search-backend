@@ -105,23 +105,15 @@ ele desistir.
 
 ## Tradução para português
 
-Os textos que o scraper tira do IMDB (sinopse, trivia, citações, gêneros e
-palavras-chave) só existem em inglês. O backend gera uma versão em português
-com o [Argos Translate](https://github.com/argosopentech/argos-translate), um
-tradutor automático de código aberto que roda **offline, na própria máquina**:
-é como um Google Tradutor local, sem chave de API, sem cota e sem custo.
+Os textos vindos do IMDB (sinopse, trivia, citações, gêneros e palavras-chave)
+são traduzidos pelo [Argos Translate](https://github.com/argosopentech/argos-translate),
+um tradutor automático que roda offline no servidor: sem chave de API nem custo.
+O modelo en→pt (~100 MB) é baixado uma vez para `~/.local/share/argos-translate`.
 
-- O modelo inglês→português (cerca de 100 MB) é baixado uma única vez, na
-  primeira tradução, para `~/.local/share/argos-translate`. Depois disso não há
-  mais rede nem download.
-- A tradução acontece ao cadastrar o favorito e fica gravada no documento em
-  `translations.pt`; o inglês original é mantido. Favoritos antigos são
-  traduzidos sob demanda por `POST /api/favorites/<tconst>/translate`.
-- O cliente escolhe o idioma na leitura: `GET /api/favorites/<tconst>?lang=pt`
-  devolve os textos em português (ou em inglês, com `lang: "en"` na resposta,
-  quando ainda não há tradução); sem o parâmetro vem o inglês.
-- A qualidade é de tradução de máquina: dá para entender, mas puxa para o
-  português de Portugal em alguns pontos e tropeça em expressões idiomáticas.
+- A tradução é feita ao cadastrar o favorito e gravada em `translations.pt`.
+  Favoritos antigos: `POST /api/favorites/<tconst>/translate`.
+- `GET /api/favorites/<tconst>?lang=pt` devolve os textos em português; o
+  campo `lang` da resposta diz o idioma entregue. Sem o parâmetro vem o inglês.
 
 ## Sugestão por palavras-chave
 
