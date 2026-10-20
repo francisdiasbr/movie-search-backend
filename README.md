@@ -11,6 +11,7 @@
 - [Sessão do IMDB](#sessão-do-imdb)
 - [Tradução para português](#tradução-para-português)
 - [Sugestão por palavras-chave](#sugestão-por-palavras-chave)
+- [Belas Artes à la Carte](#belas-artes-à-la-carte)
 - [Scripts de Automação](#scripts-de-automação)
 - [Documentação da API](#documentação-da-api)
 
@@ -124,6 +125,16 @@ filme que casa com várias palavras-chave aparece antes de um que casa com uma
 só; no empate vale a popularidade do IMDB. Palavras-chave viram o identificador
 do IMDB automaticamente (`French New Wave` → `french-new-wave`); nomes de
 pessoas não são palavras-chave e voltam vazios.
+
+## Belas Artes à la Carte
+
+`GET /api/belas-artes/recent` lista os filmes da seção *Adicionados
+recentemente* do [Belas Artes à la Carte](https://www.belasartesalacarte.com.br/#/filmes)
+com a nota do IMDB. Não há scraping de HTML: o site baixa o catálogo inteiro de
+um JSON público (sem login nem chave), que o backend só baixa de novo quando a
+versão muda. A nota vem da API GraphQL do IMDB, buscando pelo título original +
+ano; só conta um título igual (ignorando acentos, pontuação e caixa) com ano até
+±1, e fica em cache por 24 h. Sem correspondência, `imdb_rating` é `null`.
 
 ## Scripts de Automação
 

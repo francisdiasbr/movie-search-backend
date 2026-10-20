@@ -25,9 +25,10 @@ Flask 3 + flask-restx (Swagger, request validation) + pymongo. Entrypoint is `ap
 
 ```
 favorites/      routes.py, controller.py, scrapper.py (IMDB via Playwright), external_requests.py (RapidAPI, OpenSubtitles), translation.py (Portuguese version via Argos Translate, offline)
-keywords/       routes.py, controller.py, imdb.py (movies by keyword through IMDB's GraphQL API, no session or key needed)
+keywords/       routes.py, controller.py, imdb.py (IMDB's GraphQL API, no session or key needed: movies by keyword, `find_rating`, `find_backdrop` for the favorite banner)
 main_images/    routes.py, controller.py (S3 upload/list/delete + metadata in Mongo)
 write_review/   routes.py, controller.py
+belas_artes/    routes.py, controller.py, catalog.py (Belas Artes à la Carte catalog from the public JSON its site loads; IMDB rating via keywords/imdb.py find_rating)
 ```
 
 - `routes.py` holds the flask-restx `Namespace`, the Swagger models and thin `Resource` classes that read the body with `utils.json_body()` (always a dict) and call the controller. No business logic there.

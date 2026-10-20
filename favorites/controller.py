@@ -23,6 +23,7 @@ from favorites.scrapper import (
 )
 from favorites.external_requests import get_magnet_link, get_subtitle_url
 from favorites.translation import LANGUAGES, localize, translate_movie
+from keywords.imdb import IMDBSearchError, find_backdrop
 from utils import error, pick
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Scrapers that take a tconst, keyed by the field each one fills in. Adding a
 # new field to a favorite means adding one entry here.
 SCRAPERS = {
+    "backdrop_url": find_backdrop,
     "country": get_movie_country,
     "director": get_director,
     "genres": get_movie_genres,
@@ -109,12 +111,26 @@ def get_favorited_movie(tconst, lang="en"):
     if lang not in LANGUAGES:
         return error(f"Idioma inválido, use um de: {', '.join(LANGUAGES)}", 400)
 
-    movie = db.serialize(
-        get_mongo_collection(FAVORITES_COLLECTION).find_one({"tconst": tconst})
-    )
+    collection = get_mongo_collection(FAVORITES_COLLECTION)
+    movie = db.serialize(collection.find_one({"tconst": tconst}))
     if not movie:
         return error("Movie not found", 404)
+
+    if "backdrop_url" not in movie:
+        movie = _backfill_backdrop(collection, movie)
     return {"data": localize(movie, lang)}, 200
+
+
+def _backfill_backdrop(collection, movie):
+    """Favorites created before banners existed get one the first time they
+    are opened. "" is stored when IMDB has no landscape still, so the lookup
+    is not repeated; a failed lookup stores nothing and is retried next time."""
+    try:
+        backdrop = find_backdrop(movie["tconst"]) or ""
+    except IMDBSearchError as e:
+        logger.warning("%s", e)
+        return movie
+    return db.update(collection, {"tconst": movie["tconst"]}, {"backdrop_url": backdrop})
 
 
 def translate_favorited_movie(tconst):
