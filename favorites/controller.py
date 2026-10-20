@@ -23,7 +23,7 @@ from favorites.scrapper import (
 )
 from favorites.external_requests import get_magnet_link, get_subtitle_url
 from favorites.translation import LANGUAGES, localize, translate_movie
-from keywords.imdb import IMDBSearchError, find_backdrop
+from keywords.imdb import IMDBSearchError, find_backdrop, find_brazilian_title
 from utils import error, pick
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,7 @@ SCRAPERS = {
     "stars": get_movie_principal_stars,
     "startYear": get_movie_year,
     "subtitle_url": get_subtitle_url,
+    "title_pt": find_brazilian_title,
     "trivia": get_movie_trivia,
     "writers": get_writers,
 }
@@ -116,21 +117,29 @@ def get_favorited_movie(tconst, lang="en"):
     if not movie:
         return error("Movie not found", 404)
 
-    if "backdrop_url" not in movie:
-        movie = _backfill_backdrop(collection, movie)
+    for field, lookup in BACKFILLS.items():
+        if field not in movie:
+            movie = _backfill(collection, movie, field, lookup)
     return {"data": localize(movie, lang)}, 200
 
 
-def _backfill_backdrop(collection, movie):
-    """Favorites created before banners existed get one the first time they
-    are opened. "" is stored when IMDB has no landscape still, so the lookup
-    is not repeated; a failed lookup stores nothing and is retried next time."""
+# Fields added after the first favorites were created, with the IMDB lookup
+# that fills them in the first time an old favorite is opened.
+BACKFILLS = {
+    "backdrop_url": find_backdrop,
+    "title_pt": find_brazilian_title,
+}
+
+
+def _backfill(collection, movie, field, lookup):
+    """"" is stored when IMDB has nothing, so the lookup is not repeated; a
+    failed lookup stores nothing and is retried next time."""
     try:
-        backdrop = find_backdrop(movie["tconst"]) or ""
+        value = lookup(movie["tconst"]) or ""
     except IMDBSearchError as e:
         logger.warning("%s", e)
         return movie
-    return db.update(collection, {"tconst": movie["tconst"]}, {"backdrop_url": backdrop})
+    return db.update(collection, {"tconst": movie["tconst"]}, {field: value})
 
 
 def translate_favorited_movie(tconst):

@@ -97,6 +97,22 @@ query TitleImages($id: ID!) {
 }
 """
 
+LOCALIZED_TITLE_QUERY = """
+query LocalizedTitle($id: ID!) {
+  title(id: $id) {
+    titleText { text }
+    originalTitleText { text }
+  }
+}
+"""
+# The API localizes `titleText` by these headers; the default ones (US) give
+# the English title the scraper already stores.
+BRAZIL_HEADERS = {
+    **HEADERS,
+    "x-imdb-user-country": "BR",
+    "x-imdb-user-language": "pt-BR",
+}
+
 # Stills at least this much wider than tall work as a banner.
 BACKDROP_MIN_RATIO = 1.4
 # IMDB resizes on the fly from the URL; the originals can be 5000px wide.
@@ -200,19 +216,37 @@ def find_backdrop(tconst):
     return url.replace("._V1_.", f"._V1_UX{BACKDROP_WIDTH}_.")
 
 
+def find_brazilian_title(tconst):
+    """Title of `tconst` as released in Brazil ("The Party" -> "Um Convidado
+    Bem Trapalhão"). None when IMDB has no Brazilian title, in which case it
+    answers the original one."""
+    body = _post(
+        LOCALIZED_TITLE_QUERY,
+        {"id": tconst},
+        f"Brazilian title of {tconst}",
+        headers=BRAZIL_HEADERS,
+    )
+    title = _text(body, "data", "title")
+    localized = _text(title, "titleText", "text")
+    original = _text(title, "originalTitleText", "text")
+    if not localized or localized == original:
+        return None
+    return localized
+
+
 def _search(query, variables, what):
     """Edges of an advancedTitleSearch; IMDBSearchError when IMDB fails."""
     body = _post(query, variables, what)
     return body.get("data", {}).get("advancedTitleSearch", {}).get("edges") or []
 
 
-def _post(query, variables, what):
+def _post(query, variables, what, headers=HEADERS):
     """Body of a GraphQL answer; IMDBSearchError when IMDB fails."""
     try:
         response = _session.post(
             GRAPHQL_URL,
             json={"query": query, "variables": variables},
-            headers=HEADERS,
+            headers=headers,
             timeout=HTTP_TIMEOUT,
         )
         response.raise_for_status()
