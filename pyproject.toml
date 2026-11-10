@@ -1,0 +1,3 @@
+[tool.black]
+# Agent worktrees are copies of the repo; they are not ours to format.
+extend-exclude = '/\.claude/'

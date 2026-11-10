@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./venv/bin/python -m pytest      # test suite (offline, ~2s); one file: -m pytest tests/test_db.py
 ```
 
-Black is configured in `.pre-commit-config.yaml`.
+Black is configured in `.pre-commit-config.yaml` and pinned in `requirements-dev.txt`; `./venv/bin/python -m black .` formats the repo. GitHub Actions (`.github/workflows/ci.yml`) runs `black --check .` and the test suite on every push and pull request, so format before committing.
 
 ## Tests
 

@@ -1,5 +1,7 @@
 # 🎬 movie-search-backend
 
+[![CI](https://github.com/francisdiasbr/movie-search-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/francisdiasbr/movie-search-backend/actions/workflows/ci.yml)
+
 > **📚 Para documentação completa do projeto, consulte o [README-DOCS.md](README-DOCS.md)**
 
 ## 📑 Índice
@@ -148,9 +150,13 @@ série (filme, episódio) responde `400`.
 ## Testes
 
 ```bash
-pip install -r requirements-dev.txt   # pytest e mongomock
+pip install -r requirements-dev.txt   # pytest, mongomock e Black
 python -m pytest
+python -m black --check .
 ```
+
+O GitHub Actions roda a formatação e a suíte a cada push e pull request
+(`.github/workflows/ci.yml`).
 
 A suíte roda offline em poucos segundos: o MongoDB é simulado em memória com
 mongomock, e o S3 e o IMDB são substituídos por mocks. Cobre `utils.py`,

@@ -1,5 +1,5 @@
 repos:
 -   repo: https://github.com/psf/black
-    rev: 23.9.1  # Use a versão mais recente do Black
+    rev: 24.10.0  # a mesma versão do requirements-dev.txt e do CI
     hooks:
     - id: black
