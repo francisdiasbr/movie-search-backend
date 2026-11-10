@@ -9,9 +9,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./verify_imdb.sh                # same, but renews the IMDB session first if the WAF is blocking
 ./venv/bin/python imdb_verify.py # only the manual IMDB verification window (backend must be stopped)
 ./venv/bin/python -c "import app"  # quickest sanity check: every blueprint and model loads
+./venv/bin/python -m pytest      # test suite (offline, ~2s); one file: -m pytest tests/test_db.py
 ```
 
-No test suite exists. Black is configured in `.pre-commit-config.yaml`.
+Black is configured in `.pre-commit-config.yaml`.
+
+## Tests
+
+`pip install -r requirements-dev.txt` adds pytest and mongomock. `tests/` has one file per module: `utils`, `db`, each controller, and `test_app.py` for the routes and the 503 handlers through Flask's test client.
+
+- No test reaches Atlas, S3 or IMDB. The autouse `mongo` fixture in `tests/conftest.py` replaces `config.get_mongo_client` with a mongomock client, so controllers run their real Mongo code against an in-memory database.
+- External calls are mocked where the controller looks them up (`monkeypatch.setattr(controller, "find_series", ...)`), not in the module that defines them. Dicts of functions (`SCRAPERS`, `BACKFILLS`) are replaced whole.
+- S3 is a `Mock` returned by a patched `main_images.controller.s3_client`.
 
 ## Environment
 
@@ -25,10 +34,11 @@ Flask 3 + flask-restx (Swagger, request validation) + pymongo. Entrypoint is `ap
 
 ```
 favorites/      routes.py, controller.py, scrapper.py (IMDB via Playwright), external_requests.py (RapidAPI, OpenSubtitles), translation.py (Portuguese version via Argos Translate, offline)
-keywords/       routes.py, controller.py, imdb.py (IMDB's GraphQL API, no session or key needed: movies by keyword, `find_rating`, `find_backdrop` for the favorite banner)
+keywords/       routes.py, controller.py, imdb.py (IMDB's GraphQL API, no session or key needed: movies by keyword or by director name, `find_rating`, `find_backdrop` for the favorite banner)
 main_images/    routes.py, controller.py (S3 upload/list/delete + metadata in Mongo)
 write_review/   routes.py, controller.py
 belas_artes/    routes.py, controller.py, catalog.py (Belas Artes à la Carte catalog from the public JSON its site loads; IMDB rating via keywords/imdb.py find_rating)
+series/         routes.py, controller.py (TV series list; every field comes from keywords/imdb.py find_series, no scraper involved)
 ```
 
 - `routes.py` holds the flask-restx `Namespace`, the Swagger models and thin `Resource` classes that read the body with `utils.json_body()` (always a dict) and call the controller. No business logic there.

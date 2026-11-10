@@ -136,6 +136,27 @@ versão muda. A nota vem da API GraphQL do IMDB, buscando pelo título original 
 ano; só conta um título igual (ignorando acentos, pontuação e caixa) com ano até
 ±1, e fica em cache por 24 h. Sem correspondência, `imdb_rating` é `null`.
 
+## Séries
+
+`POST /api/series/<tconst>` adiciona uma série de TV à lista (`GET`, `PUT` com
+`watched` e `DELETE` no mesmo caminho; `POST /api/series/search` lista com
+busca por título). Tudo vem da API GraphQL do IMDb: título original e
+brasileiro, anos, sinopse, gêneros, pôster, nota, temporadas, episódios,
+criadores e elenco. Não há scraper nem sessão envolvida. Um tconst que não é
+série (filme, episódio) responde `400`.
+
+## Testes
+
+```bash
+pip install -r requirements-dev.txt   # pytest e mongomock
+python -m pytest
+```
+
+A suíte roda offline em poucos segundos: o MongoDB é simulado em memória com
+mongomock, e o S3 e o IMDB são substituídos por mocks. Cobre `utils.py`,
+`db.py`, os controllers de cada feature e, pelo cliente de teste do Flask, as
+rotas e as respostas `503` de dependência fora do ar.
+
 ## Scripts de Automação
 
 O projeto inclui scripts para facilitar o desenvolvimento:
