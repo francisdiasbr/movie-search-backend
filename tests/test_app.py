@@ -94,3 +94,37 @@ def test_blocked_imdb_is_503_and_not_404(client, monkeypatch):
 def test_upload_without_a_file_is_400(client):
     response = client.post("/api/main-images/tt1", data={})
     assert response.status_code == 400
+
+
+# Every route that declares a Swagger model with @api.expect. flask-restx
+# validates the body before the resource runs, so these answers never reach
+# utils.json_body().
+ROUTES_WITH_A_BODY = [
+    ("post", "/api/favorites/search"),
+    ("put", "/api/favorites/tt1"),
+    ("post", "/api/keywords/"),
+    ("post", "/api/keywords/suggest-movies"),
+    ("post", "/api/write-review/tt1"),
+    ("put", "/api/write-review/tt1"),
+    ("post", "/api/write-review/search"),
+    ("post", "/api/series/search"),
+    ("put", "/api/series/tt1"),
+]
+
+
+@pytest.mark.parametrize("method, url", ROUTES_WITH_A_BODY)
+def test_request_without_a_json_body_is_415(client, method, url):
+    response = getattr(client, method)(url)
+
+    assert response.status_code == 415
+    assert set(response.json) == {"message"}
+
+
+@pytest.mark.parametrize("method, url", ROUTES_WITH_A_BODY)
+def test_malformed_json_is_400(client, method, url):
+    response = getattr(client, method)(
+        url, data="{not json", content_type="application/json"
+    )
+
+    assert response.status_code == 400
+    assert set(response.json) == {"message"}

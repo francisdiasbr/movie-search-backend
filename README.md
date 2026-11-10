@@ -91,6 +91,9 @@ A documentação interativa (Swagger UI) é servida em `/docs`. Todas as rotas f
 
 `tconst` é o identificador de um título no IMDB, como `tt0053198`.
 
+As rotas que recebem corpo exigem JSON (`Content-Type: application/json`): sem ele respondem `415`,
+e com JSON malformado ou fora do modelo, `400`.
+
 ## Decisões técnicas
 
 **Uma convenção de erros, aplicada num lugar só.** Recurso duplicado é `409`, recurso ausente é

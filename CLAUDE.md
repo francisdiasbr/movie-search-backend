@@ -69,3 +69,4 @@ series/         routes.py, controller.py (TV series list; every field comes from
 - Code, identifiers, comments and log messages in English; user-facing API messages in Portuguese.
 - `logging.getLogger(__name__)` everywhere, never `print`.
 - Duplicate resource is `409`; missing resource is `404`; dependency down is `503`.
+- Routes with `@api.expect(model)` require a JSON body: flask-restx answers `415` when the request has no `application/json` body and `400` when the JSON is malformed or fails the model, before the resource runs. This is intended; `tests/test_app.py` pins it for every such route (`ROUTES_WITH_A_BODY`, add new routes there). An empty object `{}` is a valid body wherever the model has no required field.

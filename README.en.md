@@ -83,6 +83,9 @@ Interactive documentation (Swagger UI) is served at `/docs`. All routes are unde
 
 `tconst` is the IMDB identifier of a title, such as `tt0053198`.
 
+Routes that take a body require JSON (`Content-Type: application/json`): without it they answer
+`415`, and with malformed JSON or a body that fails the model, `400`.
+
 ## Technical decisions
 
 **One error convention, enforced in one place.** A duplicate resource is `409`, a missing one is
