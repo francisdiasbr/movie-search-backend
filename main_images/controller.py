@@ -13,6 +13,7 @@ from config import (
     AWS_SECRET_ACCESS_KEY,
     MAIN_IMAGES_COLLECTION,
     S3_BUCKET,
+    DatabaseUnavailable,
     get_mongo_collection,
 )
 from utils import error, optimize_image
@@ -107,6 +108,9 @@ def upload_image_to_s3(file, tconst, subtitle_en="", subtitle_pt=""):
             "filename": new_filename,
             "sequential_id": sequential_id,
         }, 200
+    except DatabaseUnavailable:
+        # The metadata insert lost Mongo: app.py answers 503, not a S3 error.
+        raise
     except Exception as e:
         logger.error("Erro ao fazer upload para S3: %s", e)
         return error("Erro ao fazer upload para S3", 500)

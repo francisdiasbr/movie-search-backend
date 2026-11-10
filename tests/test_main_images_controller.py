@@ -107,6 +107,19 @@ def test_upload_is_500_and_stores_nothing_when_s3_fails(s3, images):
     assert images.count_documents({}) == 0
 
 
+def test_upload_reraises_database_unavailable_when_the_metadata_insert_fails(
+    s3, images, monkeypatch
+):
+    collection = Mock(wraps=images)
+    collection.insert_one.side_effect = config.DatabaseUnavailable(
+        "MongoDB Atlas indisponível"
+    )
+    monkeypatch.setattr(controller, "images", lambda: collection)
+
+    with pytest.raises(config.DatabaseUnavailable):
+        upload()
+
+
 def test_upload_without_credentials_raises_storage_unavailable(monkeypatch, images):
     monkeypatch.setattr(controller, "AWS_SECRET_ACCESS_KEY", "")
 
