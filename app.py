@@ -17,6 +17,7 @@ from belas_artes.routes import belas_artes_bp
 from favorites.routes import favorites_bp
 from keywords.routes import keywords_bp
 from main_images.routes import main_images_bp
+from series.routes import series_bp
 from write_review.routes import write_review_bp
 
 # Flask instance
@@ -115,6 +116,7 @@ app.register_blueprint(keywords_bp)
 app.register_blueprint(main_images_bp)
 app.register_blueprint(write_review_bp)
 app.register_blueprint(belas_artes_bp)
+app.register_blueprint(series_bp)
 
 # Add namespaces
 api.add_namespace(favorites_bp.api)
@@ -122,6 +124,7 @@ api.add_namespace(keywords_bp.api)
 api.add_namespace(main_images_bp.api)
 api.add_namespace(write_review_bp.api)
 api.add_namespace(belas_artes_bp.api)
+api.add_namespace(series_bp.api)
 
 # main function to start the server
 if __name__ == "__main__":

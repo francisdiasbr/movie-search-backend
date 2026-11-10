@@ -2,7 +2,11 @@ import logging
 
 import db
 from config import KEYWORDS_COLLECTION, get_mongo_collection
-from keywords.imdb import IMDBSearchError, search_movies_by_keyword
+from keywords.imdb import (
+    IMDBSearchError,
+    search_movies_by_director,
+    search_movies_by_keyword,
+)
 from utils import error
 
 logger = logging.getLogger(__name__)
@@ -43,9 +47,10 @@ SUGGESTION_LIMIT = 15
 def suggest_movies_by_keywords(keywords):
     """Movies IMDB tags with the keywords, the ones matching more first.
 
-    One IMDB search per keyword; a movie that comes back for several
-    keywords ranks above one that matches a single keyword, and within the
-    same count IMDB's popularity order is kept. A keyword IMDB does not know
+    One IMDB search per keyword; a keyword that is a director's name
+    ("François Truffaut") brings the movies they directed instead. A movie
+    that comes back for several keywords ranks above one that matches a
+    single keyword, and within the same count IMDB's order is kept. A keyword IMDB does not know
     simply contributes nothing; the answer is 502 only when every search
     failed.
     """
@@ -53,7 +58,9 @@ def suggest_movies_by_keywords(keywords):
     failures = 0
     for keyword in dict.fromkeys(str(k).strip() for k in keywords if str(k).strip()):
         try:
-            movies = search_movies_by_keyword(keyword, PER_KEYWORD)
+            movies = search_movies_by_director(
+                keyword, PER_KEYWORD
+            ) or search_movies_by_keyword(keyword, PER_KEYWORD)
         except IMDBSearchError as e:
             logger.error("%s", e)
             failures += 1

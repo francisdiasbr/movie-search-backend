@@ -52,6 +52,7 @@ def get_mongo_collection(name):
 # Mongo collections
 FAVORITES_COLLECTION = "favoritelist"
 REVIEWS_COLLECTION = "authoralreviewslist"
+SERIES_COLLECTION = "serieslist"
 KEYWORDS_COLLECTION = "favorites_keywords"
 MAIN_IMAGES_COLLECTION = "main-images"
 BLOGPOSTS_COLLECTION = "blogposts"

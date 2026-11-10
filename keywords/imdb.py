@@ -54,6 +54,35 @@ query MoviesByKeyword($keyword: String!, $first: Int!) {
   }
 }
 """
+DIRECTOR_QUERY = """
+query Director($name: String!) {
+  mainSearch(first: 5, options: { searchTerm: $name, type: NAME }) {
+    edges { node { entity { ... on Name { id nameText { text } } } } }
+  }
+}
+"""
+
+DIRECTED_QUERY = """
+query Directed($id: ID!) {
+  name(id: $id) {
+    credits(first: 250, filter: { categories: ["director"], titleType: "movie" }) {
+      edges {
+        node {
+          title {
+            id
+            titleText { text }
+            originalTitleText { text }
+            releaseYear { year }
+            plot { plotText { plainText } }
+            titleGenres { genres { genre { text } } }
+            ratingsSummary { voteCount }
+          }
+        }
+      }
+    }
+  }
+}
+"""
 # Parallel rating searches sometimes fail to resolve the host on the first
 # burst; retrying the connection is enough.
 _session = requests.Session()
@@ -113,6 +142,33 @@ BRAZIL_HEADERS = {
     "x-imdb-user-language": "pt-BR",
 }
 
+SERIES_QUERY = """
+query Series($id: ID!) {
+  title(id: $id) {
+    id
+    titleType { id }
+    titleText { text }
+    originalTitleText { text }
+    releaseYear { year endYear }
+    plot { plotText { plainText } }
+    titleGenres { genres { genre { text } } }
+    primaryImage { url }
+    ratingsSummary { aggregateRating }
+    episodes {
+      seasons { number }
+      episodes(first: 1) { total }
+    }
+    principalCredits(filter: { categories: ["creator", "cast"] }) {
+      category { id }
+      credits { name { nameText { text } } }
+    }
+  }
+}
+"""
+SERIES_TYPES = ("tvSeries", "tvMiniSeries")
+# IMDB resizes posters on the fly from the URL; the list needs small ones.
+POSTER_WIDTH = 400
+
 # Stills at least this much wider than tall work as a banner.
 BACKDROP_MIN_RATIO = 1.4
 # IMDB resizes on the fly from the URL; the originals can be 5000px wide.
@@ -150,6 +206,42 @@ def search_movies_by_keyword(keyword, first=15):
     )
     movies = [_movie(edge["node"]["title"]) for edge in edges]
     logger.info("IMDB keyword %r: %d movies", slug, len(movies))
+    return movies
+
+
+def search_movies_by_director(name, first=15):
+    """Up to `first` movies directed by the person called `name`, the most
+    voted on IMDB first.
+
+    IMDB's name search is fuzzy, so only a person whose name is the same once
+    accents, punctuation and case are dropped counts. Returns [] when nobody
+    has that name or they directed no movie.
+    """
+    wanted = _normalize(name)
+    if not wanted:
+        return []
+
+    body = _post(DIRECTOR_QUERY, {"name": name.strip()}, f"name search for {name!r}")
+    edges = _text(body, "data", "mainSearch", "edges") or []
+    person = next(
+        (
+            edge["node"]["entity"]
+            for edge in edges
+            if _normalize(_text(edge["node"]["entity"], "nameText", "text")) == wanted
+        ),
+        None,
+    )
+    if not person:
+        return []
+
+    body = _post(DIRECTED_QUERY, {"id": person["id"]}, f"movies directed by {name!r}")
+    edges = _text(body, "data", "name", "credits", "edges") or []
+    titles = sorted(
+        (edge["node"]["title"] for edge in edges),
+        key=lambda t: -(_text(t, "ratingsSummary", "voteCount") or 0),
+    )
+    movies = [_movie(title) for title in titles[:first]]
+    logger.info("IMDB director %r (%s): %d movies", name, person["id"], len(movies))
     return movies
 
 
@@ -232,6 +324,47 @@ def find_brazilian_title(tconst):
     if not localized or localized == original:
         return None
     return localized
+
+
+def find_series(tconst):
+    """The TV series `tconst` as IMDB describes it, for the series list.
+
+    None when IMDB has no such title. A title that exists but is not a
+    series (a movie, an episode) comes back with `is_series` False so the
+    caller can refuse it with a clear message.
+    """
+    body = _post(SERIES_QUERY, {"id": tconst}, f"series {tconst}")
+    title = _text(body, "data", "title")
+    if not title:
+        return None
+
+    credits = {
+        _text(group, "category", "id"): [
+            _text(credit, "name", "nameText", "text")
+            for credit in group.get("credits") or []
+        ]
+        for group in title.get("principalCredits") or []
+    }
+    poster = _text(title, "primaryImage", "url") or ""
+    return {
+        "tconst": title["id"],
+        "is_series": _text(title, "titleType", "id") in SERIES_TYPES,
+        "primaryTitle": _text(title, "titleText", "text") or "",
+        "originalTitle": _text(title, "originalTitleText", "text") or "",
+        "startYear": _text(title, "releaseYear", "year"),
+        "endYear": _text(title, "releaseYear", "endYear"),
+        "plot": _text(title, "plot", "plotText", "plainText") or "",
+        "genres": [
+            genre["genre"]["text"]
+            for genre in _text(title, "titleGenres", "genres") or []
+        ],
+        "poster_url": poster.replace("._V1_.", f"._V1_UX{POSTER_WIDTH}_."),
+        "imdb_rating": _text(title, "ratingsSummary", "aggregateRating"),
+        "seasons": len(_text(title, "episodes", "seasons") or []),
+        "episodes": _text(title, "episodes", "episodes", "total") or 0,
+        "creators": credits.get("creator", []),
+        "stars": credits.get("cast", []),
+    }
 
 
 def _search(query, variables, what):
