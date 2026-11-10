@@ -22,6 +22,10 @@ Black is configured in `.pre-commit-config.yaml` and pinned in `requirements-dev
 - External calls are mocked where the controller looks them up (`monkeypatch.setattr(controller, "find_series", ...)`), not in the module that defines them. Dicts of functions (`SCRAPERS`, `BACKFILLS`) are replaced whole.
 - S3 is a `Mock` returned by a patched `main_images.controller.s3_client`.
 
+## Docs
+
+`README.md` is the English overview (architecture, routes, technical decisions); `README.pt-BR.md` is the Portuguese setup and operation guide. Keep both in sync when a route or a convention changes.
+
 ## Environment
 
 Copy `.env.example` to `.env`. Only `MONGODB_CONNECTION_STRING_ATLAS` and `MONGODB_DATABASE` are needed to boot; AWS, RapidAPI and OpenSubtitles keys are validated by the routes that use them. There is no local MongoDB: Atlas is the only database.
