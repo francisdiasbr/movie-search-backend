@@ -26,6 +26,7 @@ Construída com **Python 3.11, Flask 3, flask-restx, MongoDB Atlas e AWS S3**.
 - [Scripts de Automação](#scripts-de-automação)
 - [Documentação da API](#documentação-da-api)
 - [Estrutura de pastas](#estrutura-de-pastas)
+- [Documentação](#documentação)
 
 ## Arquitetura
 
@@ -80,7 +81,7 @@ A documentação interativa (Swagger UI) é servida em `/docs`. Todas as rotas f
 | Palavras-chave | `GET /keywords` · `POST /keywords` | Lista e salva palavras-chave favoritas |
 | | `DELETE /keywords/<keyword>` | Remove uma palavra-chave |
 | | `POST /keywords/suggest-movies` | Sugere filmes a partir de palavras-chave ou nomes de diretores |
-| Resenhas | `POST /write-review/search` | Busca paginada das resenhas autorais |
+| Resenhas | `POST /write-review/search` | Busca das resenhas autorais (devolve todas, sem paginar) |
 | | `GET` · `POST` · `PUT` · `DELETE /write-review/<tconst>` | Lê, cria, edita e remove a resenha de um filme |
 | Imagens | `GET /main-images/<tconst>` | Lista as imagens de um filme, com as legendas |
 | | `POST /main-images/<tconst>` | Envia uma imagem para o S3 |
@@ -102,9 +103,10 @@ exceção (`DatabaseUnavailable`, `StorageUnavailable`, `IMDBUnavailable`), e o 
 três em `503 { "message": ... }`. Os controllers nunca checam se a conexão existe, e um scraper
 bloqueado nunca é confundido com um filme que não existe.
 
-**Dependências opcionais falham por rota, não na inicialização.** Só o MongoDB Atlas é necessário
-para a API subir. As chaves da AWS e de terceiros são validadas pelas rotas que as usam, que
-respondem `503` quando faltam.
+**Dependências falham por rota, não na inicialização.** A conexão com o MongoDB só é aberta na
+primeira requisição, então o processo sobe mesmo sem ele e as rotas respondem `503`. Sem as chaves da
+AWS, as rotas de imagem respondem `503`. Sem as chaves da RapidAPI ou do OpenSubtitles, o favorito é
+salvo sem `magnet_link` ou sem `subtitle_url`.
 
 **Camada de acesso a dados compartilhada.** Os controllers passam pelo `db.py` (`insert`, `search`
 paginado, `update`, `delete`, `serialize`) em vez de chamar o pymongo cada um de um jeito. Os filtros
@@ -152,7 +154,7 @@ separadamente do pacote Python:
 
 ### 3. Variáveis de Ambiente
 
-Crie um arquivo `.env` na raiz do projeto a partir do modelo em `.env.example`. Só o MongoDB Atlas é obrigatório para a API subir; as chaves de AWS, RapidAPI e OpenSubtitles são exigidas apenas pelas rotas que as usam, que respondem `503` quando faltam.
+Crie um arquivo `.env` na raiz do projeto a partir do modelo em `.env.example`. Só o MongoDB Atlas é obrigatório para a API funcionar. Sem as chaves da AWS, as rotas de imagem respondem `503`; sem as da RapidAPI e do OpenSubtitles, o favorito é salvo sem `magnet_link` e sem `subtitle_url`.
 
 
 
@@ -181,7 +183,7 @@ scraper mantém um perfil do Chromium em `~/.cache/movie-search/imdb-profile`
 com o token de verificação, reaproveitado entre execuções.
 
 **Sintoma de sessão bloqueada:** ao adicionar um filme que existe, a API
-responde `404` com *"Título do filme não encontrado no IMDB"*, e o log mostra:
+responde `503`, e o log mostra:
 
 ```
 ERROR favorites.scrapper: ... blocked by IMDB's AWS WAF after 3 attempts.
@@ -231,8 +233,8 @@ palavra-chave usando a API GraphQL do próprio IMDB (a mesma da busca avançada
 do site). Não precisa de sessão, chave nem do scraper, e fica fora do WAF. Um
 filme que casa com várias palavras-chave aparece antes de um que casa com uma
 só; no empate vale a popularidade do IMDB. Palavras-chave viram o identificador
-do IMDB automaticamente (`French New Wave` → `french-new-wave`); nomes de
-pessoas não são palavras-chave e voltam vazios.
+do IMDB automaticamente (`French New Wave` → `french-new-wave`). Cada termo é
+procurado primeiro como nome de diretor e, se não for um, como palavra-chave.
 
 ## Belas Artes à la Carte
 
@@ -299,3 +301,13 @@ series/             lista de séries de TV
 belas_artes/        catálogo de streaming com as notas do IMDB
 tests/              um arquivo de teste por módulo
 ```
+
+## Documentação
+
+A pasta [`docs/`](docs/README.md) traz a documentação técnica em profundidade:
+
+- [Arquitetura](docs/arquitetura.md): camadas, ciclo de uma requisição, configuração, tratamento de erros e concorrência.
+- Funcionalidades, rota a rota: [favoritos](docs/funcionalidades/favoritos.md), [palavras-chave](docs/funcionalidades/palavras-chave.md), [resenhas](docs/funcionalidades/resenhas.md), [imagens](docs/funcionalidades/imagens.md), [séries](docs/funcionalidades/series.md) e [Belas Artes](docs/funcionalidades/belas-artes.md).
+- [Modelo de dados](docs/modelo-de-dados.md): coleções do MongoDB e objetos no S3.
+- [Integrações](docs/integracoes.md): IMDB, S3, Argos Translate e demais serviços externos, e como cada um falha.
+- [Testes](docs/testes.md): organização da suíte, o que é simulado e o que o CI executa.

@@ -94,9 +94,10 @@ exception (`DatabaseUnavailable`, `StorageUnavailable`, `IMDBUnavailable`), and 
 three into `503 { "message": ... }`. Controllers never check for a missing connection, and a blocked
 scraper is never mistaken for a film that does not exist.
 
-**Optional dependencies fail per route, not at boot.** Only MongoDB Atlas is needed to start the
-API. The AWS and third-party keys are validated by the routes that use them, which answer `503`
-when they are missing.
+**Dependencies fail per route, not at boot.** The MongoDB connection is only opened on the first
+request, so the process starts without it and the routes answer `503`. Without the AWS keys the image
+routes answer `503`; without the RapidAPI or OpenSubtitles keys a favorite is saved without
+`magnet_link` or `subtitle_url`.
 
 **A shared data-access layer.** Controllers go through `db.py` (`insert`, a paginated `search`,
 `update`, `delete`, `serialize`) instead of calling pymongo in different ways. Client filters are
@@ -128,6 +129,9 @@ pip install -r requirements.txt
 cp .env.example .env                     # fill in the MongoDB Atlas connection string
 python app.py                            # http://localhost:5000, Swagger at /docs
 ```
+
+In-depth documentation (architecture, every feature route by route, data model, integrations and
+tests) lives in [`docs/`](docs/README.md), in Portuguese.
 
 The scraper keeps a browser session with IMDB. Renewing that session and the day-to-day operation
 are covered in the [Portuguese README](README.md#sessão-do-imdb).
