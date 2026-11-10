@@ -24,7 +24,7 @@ Black is configured in `.pre-commit-config.yaml` and pinned in `requirements-dev
 
 ## Docs
 
-`README.md` is the English overview (architecture, routes, technical decisions); `README.pt-BR.md` is the Portuguese setup and operation guide. Keep both in sync when a route or a convention changes.
+Documentation is written in Portuguese first. `README.md` is the main document, in Portuguese (architecture, routes, technical decisions, setup and operation); `README.en.md` is the English version of the overview. Update both when a route or a convention changes.
 
 ## Environment
 
