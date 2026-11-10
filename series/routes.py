@@ -28,7 +28,9 @@ series_model = api.model(
         "startYear": fields.Integer(description="Ano de estreia"),
         "stars": fields.List(fields.String, description="Elenco principal"),
         "tconst": fields.String(description="ID IMDB"),
-        "title_pt": fields.String(description="Título no Brasil, vazio quando é o original"),
+        "title_pt": fields.String(
+            description="Título no Brasil, vazio quando é o original"
+        ),
         "watched": fields.Boolean(description="Já assistida"),
     },
 )

@@ -50,5 +50,3 @@ class ImageDetailOperations(Resource):
 
 
 main_images_bp.api = api
-
-

@@ -53,7 +53,9 @@ def get_movie_review(tconst):
 
 def edit_movie_review(tconst, request_data):
     """Updates only the fields present in the body; the others are kept."""
-    review = db.update(reviews(), {"tconst": tconst}, pick(request_data, EDITABLE_FIELDS))
+    review = db.update(
+        reviews(), {"tconst": tconst}, pick(request_data, EDITABLE_FIELDS)
+    )
     if not review:
         return error("Review not found", 404)
     return {"data": review}, 200

@@ -69,17 +69,20 @@ def upload_image_to_s3(file, tconst, subtitle_en="", subtitle_pt=""):
     try:
         # Otimiza a imagem antes do upload (redimensiona e comprime)
         optimized_file = optimize_image(file, max_width=800, quality=85)
-        
+
         # Faz o upload para o S3
         s3.upload_fileobj(
-            optimized_file, S3_BUCKET, object_name, ExtraArgs={"ContentType": content_type}
+            optimized_file,
+            S3_BUCKET,
+            object_name,
+            ExtraArgs={"ContentType": content_type},
         )
-        
+
         # Adiciona tags com as legendas
         if subtitle_en or subtitle_pt:
             sanitized_subtitle_en = sanitize_tag_value(subtitle_en)
             sanitized_subtitle_pt = sanitize_tag_value(subtitle_pt)
-            
+
             s3.put_object_tagging(
                 Bucket=S3_BUCKET,
                 Key=object_name,
@@ -90,7 +93,7 @@ def upload_image_to_s3(file, tconst, subtitle_en="", subtitle_pt=""):
                     ]
                 },
             )
-        
+
         images().insert_one(
             {
                 "tconst": tconst,
@@ -101,7 +104,7 @@ def upload_image_to_s3(file, tconst, subtitle_en="", subtitle_pt=""):
                 "created_at": datetime.utcnow(),
             }
         )
-        
+
         return {
             "message": "Upload realizado com sucesso",
             "object_name": object_name,

@@ -43,6 +43,7 @@ class IMDBUnavailable(Exception):
     """Raised when IMDB's AWS WAF keeps blocking the scraper. app.py turns it
     into a 503, so a blocked session is never reported as a missing title."""
 
+
 # Every page load goes through a single thread that owns Playwright: the sync
 # API cannot be used from a thread other than the one that created it, and
 # Chromium locks the profile directory, so it cannot be opened in parallel.
@@ -150,7 +151,10 @@ def fetch_soup(tconst, path=""):
                 # profile stays valid and a retry goes through.
                 if attempt < WAF_ATTEMPTS:
                     logger.warning(
-                        "WAF challenge on %s, retrying (%d/%d)", url, attempt, WAF_ATTEMPTS
+                        "WAF challenge on %s, retrying (%d/%d)",
+                        url,
+                        attempt,
+                        WAF_ATTEMPTS,
                     )
                     time.sleep(WAF_RETRY_DELAY * attempt)
                     continue
@@ -281,7 +285,9 @@ def get_writers(soup, tconst):
 @imdb_page()
 def get_movie_principal_stars(soup, tconst):
     section = _principal_credit(soup, 2, tconst)
-    stars = _texts(section.select(f"ul.ipc-inline-list {CREDIT_LINK}")) if section else None
+    stars = (
+        _texts(section.select(f"ul.ipc-inline-list {CREDIT_LINK}")) if section else None
+    )
     if section and not stars:
         logger.warning("No star links on %s", tconst)
     return stars
@@ -290,7 +296,11 @@ def get_movie_principal_stars(soup, tconst):
 @imdb_page()
 def get_movie_genres(soup, tconst):
     interests = soup.find("div", {"data-testid": "interests"})
-    return _texts(interests.find_all("span", {"class": "ipc-chip__text"})) if interests else None
+    return (
+        _texts(interests.find_all("span", {"class": "ipc-chip__text"}))
+        if interests
+        else None
+    )
 
 
 def _title_heading(soup, tconst):
@@ -312,7 +322,9 @@ def get_movie_title(soup, tconst):
 def get_movie_year(soup, tconst):
     h1 = _title_heading(soup, tconst)
     year_list = h1.find_next("ul", {"class": "ipc-inline-list"}) if h1 else None
-    year = _text(year_list.find("li", {"class": "ipc-inline-list__item"}) if year_list else None)
+    year = _text(
+        year_list.find("li", {"class": "ipc-inline-list__item"}) if year_list else None
+    )
     if year is None:
         return None
     try:

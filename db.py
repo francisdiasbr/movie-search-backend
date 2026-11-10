@@ -23,7 +23,9 @@ def insert(collection, doc):
     return serialize(doc)
 
 
-def search(collection, filters=None, projection=None, sort=("_id", -1), page=1, page_size=0):
+def search(
+    collection, filters=None, projection=None, sort=("_id", -1), page=1, page_size=0
+):
     """Counts and lists documents matching `filters`.
 
     page_size=0 means no pagination. Returns (total_documents, entries).

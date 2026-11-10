@@ -259,7 +259,11 @@ def find_rating(title, year):
 
     edges = _search(
         RATING_QUERY,
-        {"term": title.strip(), "start": f"{year - 1}-01-01", "end": f"{year + 1}-12-31"},
+        {
+            "term": title.strip(),
+            "start": f"{year - 1}-01-01",
+            "end": f"{year + 1}-12-31",
+        },
         f"rating search for {title!r} ({year})",
     )
     candidates = [
@@ -394,7 +398,7 @@ def _post(query, variables, what, headers=HEADERS):
 
 
 def _normalize(title):
-    """"The Cook, the Thief, His Wife &Her Lover" -> "thecookthethiefhiswifeherlover"."""
+    """ "The Cook, the Thief, His Wife &Her Lover" -> "thecookthethiefhiswifeherlover"."""
     text = unicodedata.normalize("NFKD", str(title or ""))
     text = "".join(char for char in text if not unicodedata.combining(char))
     return re.sub(r"[^a-z0-9]+", "", text.lower())

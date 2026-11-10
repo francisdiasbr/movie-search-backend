@@ -53,7 +53,9 @@ def get_subtitle_url(tconst):
     }
 
     try:
-        response = requests.get(url, headers=headers, params=params, timeout=HTTP_TIMEOUT)
+        response = requests.get(
+            url, headers=headers, params=params, timeout=HTTP_TIMEOUT
+        )
         response.raise_for_status()
         data = response.json()
     except requests.exceptions.RequestException as e:

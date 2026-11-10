@@ -132,7 +132,7 @@ BACKFILLS = {
 
 
 def _backfill(collection, movie, field, lookup):
-    """"" is stored when IMDB has nothing, so the lookup is not repeated; a
+    """ "" is stored when IMDB has nothing, so the lookup is not repeated; a
     failed lookup stores nothing and is retried next time."""
     try:
         value = lookup(movie["tconst"]) or ""
